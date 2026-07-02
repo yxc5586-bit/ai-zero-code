@@ -3,6 +3,11 @@ package com.cyx.aizerocode.common;
 import com.cyx.aizerocode.exception.ErrorCode;
 import lombok.Data;
 
+/**
+ * 快速创建返回类的工具类
+ *
+ * @author ccc
+ */
 @Data
 public class ResultUtils<T> {
 

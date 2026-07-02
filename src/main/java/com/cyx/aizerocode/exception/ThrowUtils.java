@@ -1,9 +1,15 @@
 package com.cyx.aizerocode.exception;
 
+/**
+ * 抛异常工具类
+ *
+ * @author 25038
+ * @since 2026-07-02
+ */
 public class ThrowUtils {
 
     /**
-     * 条件成立则抛异常
+     * 条件成立则抛运行时异常
      * @param condition
      * @param runtimeException
      */
@@ -15,7 +21,7 @@ public class ThrowUtils {
 
 
     /**
-     * 条件成立则抛异常
+     * 条件成立则抛业务异常
      * @param condition
      * @param errorCode
      */

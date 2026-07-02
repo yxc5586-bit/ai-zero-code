@@ -5,7 +5,12 @@ import com.cyx.aizerocode.exception.ErrorCode;
 import lombok.Data;
 
 import java.io.Serializable;
-
+/**
+ * 通用返回类
+ *
+ * @param <T>
+ * @author ccyx
+ */
 @Data
 public class BaseResponse<T> implements Serializable {
 
