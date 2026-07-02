@@ -1,18 +1,10 @@
-package com.cyx.aizerocode.model.dto;
+package com.cyx.aizerocode.model.dto.user;
 
 import com.mybatisflex.annotation.Column;
-import com.mybatisflex.annotation.Id;
-import com.mybatisflex.annotation.KeyType;
-import com.mybatisflex.annotation.Table;
-import com.mybatisflex.core.keygen.KeyGenerators;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 用户注册请求

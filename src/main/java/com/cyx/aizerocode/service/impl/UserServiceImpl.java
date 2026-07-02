@@ -1,23 +1,29 @@
 package com.cyx.aizerocode.service.impl;
 
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.cyx.aizerocode.constant.UserConstant;
 import com.cyx.aizerocode.exception.BusinessException;
 import com.cyx.aizerocode.exception.ErrorCode;
 import com.cyx.aizerocode.mapper.UserMapper;
+import com.cyx.aizerocode.model.dto.user.UserQueryRequest;
 import com.cyx.aizerocode.model.entity.User;
 import com.cyx.aizerocode.model.enums.UserRoleEnum;
 import com.cyx.aizerocode.model.vo.LoginUserVO;
+import com.cyx.aizerocode.model.vo.UserVO;
 import com.cyx.aizerocode.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 用户 服务层实现。
@@ -122,7 +128,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
     }
 
     @Override
-    public Boolean userDelete(HttpServletRequest request) {
+    public Boolean userLogout(HttpServletRequest request) {
         // 1、获取当前登录用户，校验用户登录态
         Object LoginUser = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
         User currentUser = (User) LoginUser;
@@ -132,6 +138,28 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         // 2、直接逻辑登录态删除并返回boolean值判断是否删除完成
         request.getSession().removeAttribute(UserConstant.USER_LOGIN_STATE);
         return true;
+    }
+
+    @Override
+    public QueryWrapper getQueryWrapper(UserQueryRequest userQueryRequest) {
+        if (userQueryRequest == null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "查询参数为空");
+        }
+        Long id = userQueryRequest.getId();
+        String userAccount = userQueryRequest.getUserAccount();
+        String userName = userQueryRequest.getUserName();
+        String userProfile = userQueryRequest.getUserProfile();
+        String userRole = userQueryRequest.getUserRole();
+        String sortField = userQueryRequest.getSortField();
+        String sortOrder = userQueryRequest.getSortOrder();
+        return QueryWrapper.create()
+                .eq("id", id)
+                .eq("userRole", userRole)
+                .like("userAccount", userAccount)
+                .like("userName", userName)
+                .like("userProfile", userProfile)
+                .orderBy(sortField, "ascend".equals(sortOrder));
+
     }
 
     @Override
@@ -149,5 +177,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         LoginUserVO loginUserVO = new LoginUserVO();
         BeanUtils.copyProperties(user, loginUserVO);
         return loginUserVO;
+    }
+
+
+    @Override
+    public UserVO getUserVO(User user) {
+        if (user == null){
+            return null;
+        }
+        UserVO userVO = new UserVO();
+        BeanUtils.copyProperties(user, userVO);
+        return userVO;
+    }
+
+    @Override
+    public List<UserVO> getUserVOList(List<User> userList) {
+        if (CollUtil.isEmpty(userList)){
+            return new ArrayList<>();
+        }
+        return userList.stream()
+                .map(this::getUserVO)
+                .collect(Collectors.toList());
     }
 }

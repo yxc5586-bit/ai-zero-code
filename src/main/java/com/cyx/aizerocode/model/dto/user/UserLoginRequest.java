@@ -1,4 +1,4 @@
-package com.cyx.aizerocode.model.dto;
+package com.cyx.aizerocode.model.dto.user;
 
 import lombok.Data;
 
