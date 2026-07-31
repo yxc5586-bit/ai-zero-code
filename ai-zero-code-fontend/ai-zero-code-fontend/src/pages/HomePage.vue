@@ -1,8 +1,8 @@
 <script setup lang="ts">
 
-import { healthCheck } from '@/api/healthController.ts'
+import { healthController } from '@/api/healthController.ts'
 
-healthCheck().then((res) => {
+healthController().then((res) => {
   console.log(res)
 })
 

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useLoginUserStore } from '@/stores/LoginUser.ts'
+import { userLogout } from '@/api/userController.ts'
+import { type MenuProps, message } from 'ant-design-vue'
+import { HomeOutlined } from '@ant-design/icons-vue'
 
 type MenuItem = {
   key: string
@@ -8,16 +12,19 @@ type MenuItem = {
   path: string
 }
 
-const menuItems: MenuItem[] = [
-  { key: 'home', label: '首页', path: '/' },
-  { key: 'about', label: '关于我们', path: '/about' },
+const originItems: MenuItem[] = [
+  { key: '/home', icon: () =>(HomeOutlined), label: '首页', path: '/' },
+  { key: '/admin/userManage', label: '管理用户', path: '/admin/userManage' },
+  { key: '/about', label: '关于我们', path: '/about' },
 ]
 
 const route = useRoute()
 const router = useRouter()
 
 const selectedKeys = computed(() => {
-  const currentMenu = menuItems.find((item) => route.path.startsWith(item.path) && item.path !== '/')
+  const currentMenu = originItems.find(
+    (item) => route.path.startsWith(item.path) && item.path !== '/',
+  )
 
   if (currentMenu) {
     return [currentMenu.key]
@@ -27,12 +34,52 @@ const selectedKeys = computed(() => {
 })
 
 const handleMenuClick = ({ key }: { key: string }) => {
-  const target = menuItems.find((item) => item.key === key)
+  const target = originItems.find((item) => item.key === key)
 
   if (target && target.path !== route.path) {
     router.push(target.path)
   }
 }
+
+// JS 中引入 Store
+const loginUserStore = useLoginUserStore()
+{
+  {
+    JSON.stringify(loginUserStore.loginUser)
+  }
+}
+
+// 用户退出
+const doLogout = async () => {
+  const res = await userLogout()
+  if (res.data.code === 0) {
+    loginUserStore.setLoginUser({
+      userName: '未登录',
+    })
+    message.success('退出登录成功')
+    await router.push('/user/login')
+  } else {
+    message.error('退出登录失败，' + res.data.message)
+  }
+}
+
+// 过滤菜单项
+const filterMenus = (menus = [] as MenuProps['items']) => {
+  return menus?.filter((menu) => {
+    const menuKey = menu?.key as string
+    if (menuKey?.startsWith('/admin')) {
+      const loginUser = loginUserStore.loginUser
+      if (!loginUser || loginUser.userRole !== 'admin') {
+        return false
+      }
+    }
+    return true
+  })
+}
+
+// 展示在菜单的路由数组
+const menuItems = computed<MenuProps['items']>(() => filterMenus(originItems))
+
 </script>
 
 <template>
@@ -46,6 +93,7 @@ const handleMenuClick = ({ key }: { key: string }) => {
     </RouterLink>
 
     <a-menu
+      v-model="selectedKeys"
       mode="horizontal"
       class="global-header__menu"
       :selected-keys="selectedKeys"
@@ -56,8 +104,28 @@ const handleMenuClick = ({ key }: { key: string }) => {
       </a-menu-item>
     </a-menu>
 
-    <div class="global-header__actions">
-      <a-button type="primary" size="large">登录</a-button>
+    <div class="user-login-status">
+      <div v-if="loginUserStore.loginUser.id">
+        <a-dropdown>
+        <a-space>
+          <a-avatar :src="loginUserStore.loginUser.userAvatar" />
+          {{ loginUserStore.loginUser.userName ?? '无名' }}
+        </a-space>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item @click = "doLogout">
+                退出登录
+              </a-menu-item>
+
+            </a-menu>
+          </template>
+        </a-dropdown>
+
+
+      </div>
+      <div v-else>
+        <a-button type="primary" href="/user/login">登录</a-button>
+      </div>
     </div>
   </div>
 </template>
