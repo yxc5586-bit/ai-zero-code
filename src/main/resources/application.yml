@@ -6,10 +6,29 @@ spring:
     url: jdbc:mysql://localhost:3306/zerocode
     username: root
     password: `${MYSQL_PASSWORD:}
+  profiles:
+    active: local
 server:
   port: 8123
   servlet:
     context-path: '/api'
+
+# AI
+langchain4j:
+  open-ai:
+    chat-model:
+          base-url: https://api.deepseek.com
+          api-key: <Your API Key>
+          model-name: deepseek-v4-flash
+          log-requests: true
+          log-responses: true
+    streaming-chat-model:
+      base-url: https://api.deepseek.com
+      api-key: <Your API Key>
+      model-name: deepseek-v4-flash
+      log-requests: true
+      log-responses: true
+
 
 
 # springdoc-openapi

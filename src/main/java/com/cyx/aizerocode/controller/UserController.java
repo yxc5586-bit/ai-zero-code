@@ -3,6 +3,7 @@ package com.cyx.aizerocode.controller;
 
 import com.cyx.aizerocode.annotation.AuthCheck;
 import com.cyx.aizerocode.common.BaseResponse;
+import com.cyx.aizerocode.common.DeleteRequest;
 import com.cyx.aizerocode.common.ResultUtils;
 import com.cyx.aizerocode.constant.UserConstant;
 import com.cyx.aizerocode.exception.BusinessException;
@@ -191,8 +192,8 @@ public class UserController {
      * @return 查询结果
      */
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    @GetMapping("/list")
-    public BaseResponse<Page<UserVO>> listUser(UserQueryRequest userQueryRequest){
+    @PostMapping("/list/page/vo")
+    public BaseResponse<Page<UserVO>> listUser(@RequestBody UserQueryRequest userQueryRequest){
         ThrowUtils.throwIf(userQueryRequest == null, ErrorCode.PARAMS_ERROR);
         long pageNum = userQueryRequest.getPageNum();
         long pageSize = userQueryRequest.getPageSize();

@@ -74,6 +74,23 @@
 			<artifactId>HikariCP</artifactId>
 			<version>4.0.3</version>
 		</dependency>
+<!--		LangChain4j-->
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
+			<version>1.18.1-beta28</version>
+		</dependency>
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j</artifactId>
+			<version>1.18.1</version>
+		</dependency>
+<!--		reactor 流式输出依赖-->
+		<dependency>
+			<groupId>dev.langchain4j</groupId>
+			<artifactId>langchain4j-reactor</artifactId>
+			<version>1.18.1-beta28</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.projectlombok</groupId>
