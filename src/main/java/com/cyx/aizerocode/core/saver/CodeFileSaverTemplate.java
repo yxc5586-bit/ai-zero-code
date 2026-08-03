@@ -4,6 +4,7 @@ import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
+import com.cyx.aizerocode.constant.AppConstant;
 import com.cyx.aizerocode.exception.BusinessException;
 import com.cyx.aizerocode.exception.ErrorCode;
 
@@ -16,19 +17,19 @@ import java.nio.charset.StandardCharsets;
  */
 public abstract class CodeFileSaverTemplate<T> {
 
-    //定义文件保存的根目录
-    protected static final String FILE_SAVE_ROOT_DIR = System.getProperty("user.dir") + "/tmp/code_output";
+    // 文件保存根目录
+    protected static final String FILE_SAVE_ROOT_DIR = AppConstant.CODE_OUTPUT_ROOT_DIR;
 
     /**
      * 模板方法，保存代码的流程
      * @param result 代码结果
      * @return 保存的文件目录
      */
-    public final File saveCode(T result){
+    public final File saveCode(T result, Long appId){
         //验证输入、定义文件保存的根目录
         validateInput(result);
         //2、构建文件保存的唯一路径
-        String dirPath = buildUniqueDir();
+        String dirPath = buildUniqueDir(appId);
         //3、保存文件
         saveFiles(result, dirPath);
         //4、返回保存的文件
@@ -50,9 +51,9 @@ public abstract class CodeFileSaverTemplate<T> {
      * 根据类型构建唯一路径
      * @return 文件路径
      */
-    protected final String buildUniqueDir(){
+    protected final String buildUniqueDir(Long appId){
         String codeType = getCodeType().getValue();
-        String uniqueDir = StrUtil.format("{}_{}", codeType, IdUtil.getSnowflakeNextIdStr());
+        String uniqueDir = StrUtil.format("{}_{}", codeType, appId);
         String dirPath = FILE_SAVE_ROOT_DIR + File.separator + uniqueDir;
         FileUtil.mkdir(dirPath);
         return dirPath;
