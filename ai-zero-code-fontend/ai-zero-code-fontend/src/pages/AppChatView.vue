@@ -4,10 +4,11 @@ import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { deployApp, getAppVoById } from '@/api/appController'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import type { ChatMessage } from '@/types/chat'
 import { getApiErrorMessage } from '@/utils/api'
-import { getStaticPreviewUrl } from '@/utils/format'
+import { getStaticPreviewUrl, openExternalUrl } from '@/utils/format'
 import { openCodeGenerationStream, type CodeGenerationStream } from '@/utils/sse'
 
 const route = useRoute()
@@ -31,8 +32,8 @@ const deployModalVisible = ref(false)
 const deployedUrl = ref('')
 let activeStream: CodeGenerationStream | null = null
 
-const isOwner = computed(
-  () => Boolean(appInfo.value?.userId && appInfo.value.userId === loginUserStore.loginUser?.id),
+const isOwner = computed(() =>
+  Boolean(appInfo.value?.userId && appInfo.value.userId === loginUserStore.loginUser?.id),
 )
 const previewBaseUrl = computed(() => (appInfo.value ? getStaticPreviewUrl(appInfo.value) : ''))
 const previewUrl = computed(() =>
@@ -133,7 +134,7 @@ const refreshPreview = () => {
 }
 
 const openPreview = () => {
-  if (previewBaseUrl.value) window.open(previewBaseUrl.value, '_blank', 'noopener,noreferrer')
+  openExternalUrl(previewBaseUrl.value)
 }
 
 const handlePreviewLoad = (event: Event) => {
@@ -160,7 +161,8 @@ const handleDeploy = async () => {
     }
     deployedUrl.value = response.data.data
     deployModalVisible.value = true
-    if (appInfo.value) appInfo.value.deployKey = response.data.data.split('/').filter(Boolean).at(-1)
+    if (appInfo.value)
+      appInfo.value.deployKey = response.data.data.split('/').filter(Boolean).at(-1)
   } catch (error) {
     message.error(getApiErrorMessage(error, '部署失败，请先确认网站已经生成'))
   } finally {
@@ -178,7 +180,7 @@ const copyDeployUrl = async () => {
 }
 
 const openDeployedSite = () => {
-  if (deployedUrl.value) window.open(deployedUrl.value, '_blank', 'noopener,noreferrer')
+  openExternalUrl(deployedUrl.value)
 }
 
 const loadApplication = async () => {
@@ -203,12 +205,14 @@ const loadApplication = async () => {
       await router.replace({ query: nextQuery })
       await startGeneration(appInfo.value.initPrompt)
     } else if (appInfo.value.initPrompt) {
-      messages.value = [{
-        id: createMessageId(),
-        role: 'user',
-        content: appInfo.value.initPrompt,
-        status: 'done',
-      }]
+      messages.value = [
+        {
+          id: createMessageId(),
+          role: 'user',
+          content: appInfo.value.initPrompt,
+          status: 'done',
+        },
+      ]
       await scrollToBottom(true)
     }
   } catch (error) {
@@ -249,7 +253,11 @@ onBeforeUnmount(() => {
     </header>
 
     <div class="mobile-switch" role="tablist" aria-label="工作区域切换">
-      <button :class="{ active: mobilePanel === 'chat' }" type="button" @click="mobilePanel = 'chat'">
+      <button
+        :class="{ active: mobilePanel === 'chat' }"
+        type="button"
+        @click="mobilePanel = 'chat'"
+      >
         对话
       </button>
       <button
@@ -301,7 +309,16 @@ onBeforeUnmount(() => {
                   'message-bubble--streaming': item.status === 'streaming',
                 }"
               >
-                <pre>{{ item.content || '正在思考并生成代码…' }}</pre>
+                <MarkdownRenderer
+                  v-if="item.role === 'assistant' && item.content"
+                  :content="item.content"
+                />
+                <p v-else class="plain-message">{{ item.content || '正在思考并生成代码…' }}</p>
+                <span
+                  v-if="item.status === 'streaming' && item.content"
+                  class="streaming-caret"
+                  aria-hidden="true"
+                ></span>
                 <div v-if="item.status === 'streaming'" class="typing" aria-label="正在生成">
                   <span></span>
                   <span></span>
@@ -337,7 +354,9 @@ onBeforeUnmount(() => {
               @keydown="handleInputKeydown"
             />
             <div class="composer__footer">
-              <span>{{ generating ? '生成期间暂不能发送新消息' : 'AI 可能会出错，请检查生成结果' }}</span>
+              <span>{{
+                generating ? '生成期间暂不能发送新消息' : 'AI 可能会出错，请检查生成结果'
+              }}</span>
               <a-button
                 type="primary"
                 :loading="generating"
@@ -510,7 +529,7 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 0;
   padding: 10px;
-  grid-template-columns: minmax(320px, 30%) minmax(0, 1fr);
+  grid-template-columns: minmax(360px, 38%) minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -637,13 +656,12 @@ onBeforeUnmount(() => {
   border: 1px solid #ffd4d4;
 }
 
-.message-bubble--streaming pre::after {
+.streaming-caret {
   display: inline-block;
   width: 7px;
   height: 1em;
-  margin-left: 2px;
+  margin: 2px 0 0 3px;
   vertical-align: -0.12em;
-  content: '';
   background: currentColor;
   border-radius: 1px;
   animation: caret-blink 900ms steps(2, start) infinite;
@@ -655,10 +673,9 @@ onBeforeUnmount(() => {
   }
 }
 
-.message-bubble pre {
+.plain-message {
   margin: 0;
   overflow-wrap: anywhere;
-  font: inherit;
   line-height: 1.72;
   white-space: pre-wrap;
 }

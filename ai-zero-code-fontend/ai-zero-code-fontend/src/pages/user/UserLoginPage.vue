@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { reactive } from 'vue'
 import { userLogin } from '@/api/userController.ts'
-import { useLoginUserStore } from '@/stores/LoginUser.ts'
+import { useLoginUserStore } from '@/stores/loginUser'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 

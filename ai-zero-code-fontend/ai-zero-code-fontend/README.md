@@ -29,6 +29,21 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 npm install
 ```
 
+### Environment Configuration
+
+Copy `.env.example` to an environment-specific file such as `.env.development` or
+`.env.production`, then adjust the following addresses:
+
+```sh
+VITE_API_BASE_URL=/api
+VITE_APP_DEPLOY_BASE_URL=http://localhost
+VITE_APP_PREVIEW_BASE_URL=http://localhost:8123/api/static
+```
+
+- `VITE_APP_DEPLOY_BASE_URL` is the domain used to access deployed applications.
+- `VITE_APP_PREVIEW_BASE_URL` is the static root used to preview generated applications.
+- Do not append a trailing slash; the frontend normalizes it automatically if present.
+
 ### Compile and Hot-Reload for Development
 
 ```sh

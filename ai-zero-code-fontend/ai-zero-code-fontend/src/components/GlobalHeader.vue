@@ -159,7 +159,16 @@ const handleLogout = async () => {
 }
 :deep(.global-header__menu.ant-menu-horizontal > .ant-menu-item::after) {
   border-bottom-width: 3px;
-  border-bottom-color: var(--app-primary);
+  border-bottom-color: transparent !important;
+}
+:deep(.global-header__menu.ant-menu-horizontal > .ant-menu-item-selected::after) {
+  border-bottom-color: var(--app-primary) !important;
+}
+:deep(
+  .global-header__menu.ant-menu-horizontal
+    > .ant-menu-item:not(.ant-menu-item-selected):hover::after
+) {
+  border-bottom-color: transparent !important;
 }
 .global-header__actions {
   display: flex;

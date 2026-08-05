@@ -3,8 +3,9 @@ import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { Modal, message, type FormInstance } from 'ant-design-vue'
 
 import { createUser, deleteUser, listUser, updateUser } from '@/api/userController'
+import AdminPageHeader from '@/components/AdminPageHeader.vue'
 import { useLoginUserStore } from '@/stores/loginUser'
-import { getApiErrorMessage, toSafePageNumber } from '@/utils/api'
+import { cleanQueryParams, getApiErrorMessage, toSafePageNumber } from '@/utils/api'
 import { formatDateTime } from '@/utils/format'
 
 type EditorMode = 'create' | 'edit'
@@ -69,15 +70,7 @@ const currentPageAdminCount = computed(
   () => records.value.filter((user) => user.userRole === 'admin').length,
 )
 
-const cleanFilters = computed(() => {
-  const result: API.UserQueryRequest = {}
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value !== '' && value !== undefined && value !== null) {
-      ;(result as Record<string, unknown>)[key] = typeof value === 'string' ? value.trim() : value
-    }
-  })
-  return result
-})
+const cleanFilters = computed(() => cleanQueryParams(filters))
 
 const getUserDisplayName = (user: API.UserVO) => user.userName || user.userAccount || '未命名用户'
 
@@ -264,21 +257,17 @@ onMounted(fetchUsers)
 
 <template>
   <main class="admin-page page-enter">
-    <div class="admin-heading">
-      <div>
-        <span>ADMIN CONSOLE</span>
-        <h1>用户管理</h1>
-        <p>维护平台账号、公开资料与管理员权限。</p>
-      </div>
-      <div class="admin-heading__actions">
-        <div class="admin-heading__stat" aria-live="polite">
-          <strong>{{ total }}</strong>
-          <span>位用户</span>
-          <small>本页 {{ currentPageAdminCount }} 位管理员</small>
-        </div>
+    <AdminPageHeader
+      title="用户管理"
+      description="维护平台账号、公开资料与管理员权限。"
+      :total="total"
+      total-label="位用户"
+      :note="`本页 ${currentPageAdminCount} 位管理员`"
+    >
+      <template #actions>
         <a-button type="primary" size="large" @click="openCreate">新增用户</a-button>
-      </div>
-    </div>
+      </template>
+    </AdminPageHeader>
 
     <section class="filter-card" aria-label="用户筛选">
       <a-form layout="vertical" @finish="handleSearch">
@@ -305,7 +294,7 @@ onMounted(fetchUsers)
         </div>
         <div class="filter-actions">
           <a-button @click="resetFilters">重置</a-button>
-          <a-button type="primary" html-type="submit">查询用户</a-button>
+          <a-button type="primary" @click="handleSearch">查询用户</a-button>
         </div>
       </a-form>
     </section>
@@ -506,98 +495,32 @@ onMounted(fetchUsers)
 <style scoped>
 .admin-page {
   width: min(100% - 32px, var(--app-content-width));
-  margin: 48px auto 90px;
-}
-
-.admin-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 26px;
-}
-
-.admin-heading > div:first-child > span {
-  color: var(--app-primary-deep);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-}
-
-.admin-heading h1 {
-  margin: 5px 0;
-  color: var(--app-ink);
-  font-size: 36px;
-  letter-spacing: -0.04em;
-}
-
-.admin-heading p {
-  margin: 0;
-  color: var(--app-muted);
-}
-
-.admin-heading__actions {
-  display: flex;
-  align-items: stretch;
-  flex: 0 0 auto;
-  gap: 10px;
-}
-
-.admin-heading__actions :deep(.ant-btn-primary) {
-  height: auto;
-  padding-inline: 22px;
-  background: var(--app-primary);
-}
-
-.admin-heading__stat {
-  display: grid;
-  padding: 10px 18px;
-  grid-template-columns: auto auto;
-  align-items: baseline;
-  column-gap: 7px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid var(--app-border);
-  border-radius: 14px;
-}
-
-.admin-heading__stat strong {
-  color: var(--app-primary-deep);
-  font-size: 26px;
-}
-
-.admin-heading__stat span,
-.admin-heading__stat small {
-  color: var(--app-muted);
-  font-size: 12px;
-}
-
-.admin-heading__stat small {
-  grid-column: 1 / -1;
+  margin: 40px auto 76px;
 }
 
 .filter-card,
 .table-card {
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.96);
-  border-radius: 20px;
+  border-radius: 15px;
   box-shadow: var(--app-shadow-soft);
 }
 
 .filter-card {
-  margin-bottom: 18px;
-  padding: 24px 26px 18px;
+  margin-bottom: 14px;
+  padding: 18px 20px 12px;
 }
 
 .filter-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  column-gap: 18px;
+  column-gap: 15px;
 }
 
 .filter-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 9px;
+  gap: 8px;
 }
 
 .filter-actions :deep(.ant-btn-primary) {
@@ -606,7 +529,7 @@ onMounted(fetchUsers)
 
 .table-card {
   overflow: hidden;
-  padding: 6px 6px 20px;
+  padding: 4px 4px 15px;
 }
 
 .user-cell {
@@ -670,7 +593,7 @@ onMounted(fetchUsers)
 .admin-pagination {
   display: flex;
   justify-content: flex-end;
-  padding: 20px 16px 0;
+  padding: 16px 14px 0;
 }
 
 .detail-identity {
@@ -762,20 +685,7 @@ onMounted(fetchUsers)
 
 @media (max-width: 680px) {
   .admin-page {
-    margin-top: 32px;
-  }
-
-  .admin-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .admin-heading__actions {
-    width: 100%;
-  }
-
-  .admin-heading__stat {
-    flex: 1;
+    margin-top: 30px;
   }
 
   .filter-grid,
@@ -784,22 +694,12 @@ onMounted(fetchUsers)
   }
 
   .filter-card {
-    padding-inline: 18px;
+    padding-inline: 16px;
   }
 
   .admin-pagination {
     justify-content: center;
     overflow-x: auto;
-  }
-}
-
-@media (max-width: 420px) {
-  .admin-heading__actions {
-    flex-direction: column;
-  }
-
-  .admin-heading__actions :deep(.ant-btn-primary) {
-    min-height: 44px;
   }
 }
 </style>

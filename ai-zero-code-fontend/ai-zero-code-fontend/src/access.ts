@@ -1,5 +1,5 @@
 import { message } from 'ant-design-vue'
-import { useLoginUserStore } from '@/stores/LoginUser.ts'
+import { useLoginUserStore } from '@/stores/loginUser'
 import router from '@/router'
 
 router.beforeEach(async (to, from, next) => {
