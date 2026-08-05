@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
-
 import GlobalFooter from '@/components/GlobalFooter.vue'
 import GlobalHeader from '@/components/GlobalHeader.vue'
 </script>
@@ -11,9 +9,7 @@ import GlobalHeader from '@/components/GlobalHeader.vue'
       <GlobalHeader />
     </a-layout-header>
     <a-layout-content class="basic-layout__content">
-      <div class="basic-layout__content-inner">
-        <RouterView />
-      </div>
+      <RouterView />
     </a-layout-content>
     <a-layout-footer class="basic-layout__footer">
       <GlobalFooter />
@@ -32,42 +28,17 @@ import GlobalHeader from '@/components/GlobalHeader.vue'
   top: 0;
   z-index: 100;
   height: var(--app-header-height);
-  padding-inline: 24px;
-  background: transparent;
+  padding: 10px 24px;
   line-height: normal;
+  background: rgba(246, 253, 251, 0.76);
+  border-bottom: 1px solid rgba(15, 42, 68, 0.06);
+  backdrop-filter: blur(20px);
 }
-
-.basic-layout__content {
-  flex: 1;
-  padding: 28px 24px calc(var(--app-footer-height) + 36px);
-  background: transparent;
-}
-
-.basic-layout__content-inner {
-  width: min(100%, var(--app-content-width));
-  margin: 0 auto;
-}
-
-.basic-layout__footer {
-  position: fixed;
-  inset-inline: 0;
-  bottom: 0;
-  z-index: 90;
-  height: var(--app-footer-height);
-  padding: 0 24px;
-  background: transparent;
-}
+.basic-layout__content { min-height: calc(100vh - 148px); background: transparent; }
+.basic-layout__footer { padding: 0 24px 24px; background: transparent; }
 
 @media (max-width: 767px) {
-  .basic-layout__header,
-  .basic-layout__content,
-  .basic-layout__footer {
-    padding-inline: 16px;
-  }
-
-  .basic-layout__content {
-    padding-top: 20px;
-    padding-bottom: calc(var(--app-footer-height) + 24px);
-  }
+  .basic-layout__header { padding-inline: 14px; }
+  .basic-layout__footer { padding: 0 14px 18px; }
 }
 </style>

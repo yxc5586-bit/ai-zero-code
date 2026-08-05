@@ -1,30 +1,28 @@
 <template>
-  <div class="global-footer">
-    <span>© 2026 AI ZeroCode Studio. Crafted for fast product delivery.</span>
-  </div>
+  <footer class="global-footer">
+    <span>© 2026 AI ZeroCode Studio</span>
+    <span>让每一个想法，都有机会成为网站。</span>
+  </footer>
 </template>
 
 <style scoped>
 .global-footer {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   width: min(100%, var(--app-content-width));
-  height: 100%;
   margin: 0 auto;
-  color: var(--app-text-secondary);
-  font-size: 0.875rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.9));
-  border: 1px solid var(--app-border);
-  border-radius: 18px 18px 0 0;
-  backdrop-filter: blur(12px);
+  padding: 18px 24px;
+  color: var(--app-muted);
+  font-size: 13px;
+  border-top: 1px solid var(--app-border);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 575px) {
   .global-footer {
-    padding-inline: 16px;
+    flex-direction: column;
+    gap: 4px;
     text-align: center;
-    font-size: 0.75rem;
   }
 }
 </style>
