@@ -106,7 +106,10 @@ public class AiCodeGeneratorFacade {
             } catch (Exception e) {
                 log.error("保存失败: {}", e.getMessage());
             }
-        });
+        }).doOnError(e -> {
+                    log.error("AI 流式生成失败，appId={}, codeGenType={}", appId, codeGenType, e);
+                })
+                .onErrorResume(e -> Flux.just("AI 生成过程中连接中断，请稍后重试"));
     }
 
 

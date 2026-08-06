@@ -65,6 +65,7 @@ public class AppController {
         ThrowUtils.throwIf(StrUtil.isBlank(initPrompt), ErrorCode.PARAMS_ERROR, "应用初始化 prompt 不能为空");
         // 获取登录用户
         User loginUser = userService.getLoginUser(request);
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR, "用户未登录");
         // 构建app对象并设置应用信息
         App app = new App();
         app.setInitPrompt(initPrompt);
@@ -74,7 +75,7 @@ public class AppController {
         app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
         // 插入到数据库
         boolean result = appService.save(app);
-        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建应用失败");
         return ResultUtils.success(app.getId());
     }
 
@@ -265,7 +266,6 @@ public class AppController {
         appVOPage.setRecords(appVOList);
         return ResultUtils.success(appVOPage);
     }
-
     /**
      * 管理员根据 id 查看任意应用详情
      *
