@@ -14,19 +14,22 @@ import com.cyx.aizerocode.mapper.AppMapper;
 import com.cyx.aizerocode.model.dto.app.AppQueryRequest;
 import com.cyx.aizerocode.model.entity.App;
 import com.cyx.aizerocode.model.entity.User;
+import com.cyx.aizerocode.model.enums.ChatHistoryMessageTypeEnum;
 import com.cyx.aizerocode.model.vo.AppVO;
 import com.cyx.aizerocode.model.vo.UserVO;
 import com.cyx.aizerocode.service.AppService;
+import com.cyx.aizerocode.service.ChatHistoryService;
 import com.cyx.aizerocode.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
-import opennlp.tools.util.StringUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 import java.io.File;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,6 +44,7 @@ import java.util.stream.Collectors;
  * @since 2026-08-02
  */
 @Service
+@Slf4j
 public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppService {
 
     /**
@@ -53,6 +57,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private AiCodeGeneratorFacade aiCodeGeneratorFacade;
+
+    @Resource
+    protected ChatHistoryService chatHistoryService;
 
 
     @Override
@@ -156,8 +163,31 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         CodeGenTypeEnum enumByValue = CodeGenTypeEnum.getEnumByValue(codeGenType);
         ThrowUtils.throwIf(enumByValue == null, ErrorCode.PARAMS_ERROR, "不支持的代码生成类型");
 
-        //调用门面类
-        return aiCodeGeneratorFacade.generateAndSaveCodeStream(message, enumByValue, appId);
+        // 保存消息到数据库
+        chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), app.getUserId());
+        //调用门面类获取 AI 输出结果
+        Flux<String> contentFlux = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, enumByValue, appId);
+        StringBuilder codeBuilder = new StringBuilder();
+        return contentFlux.map(chunk -> {
+                    // 实时收集代码片段
+                    codeBuilder.append(chunk);
+                    return chunk;
+                }).doOnComplete(() -> {
+                    // 流式返回完成后保存代码
+                    try {
+                        String completeCode = codeBuilder.toString();
+                        if (StrUtil.isNotBlank(completeCode)) {
+                            chatHistoryService.addChatMessage(appId, completeCode, ChatHistoryMessageTypeEnum.AI.getValue(), app.getUserId());
+                        }
+
+                    } catch (Exception e) {
+                        log.error("保存失败: {}", e.getMessage());
+                    }
+                }) .doOnError(error -> {
+            // 如果AI回复失败，也要记录错误消息
+            String errorMessage = "AI回复失败: " + error.getMessage();
+            chatHistoryService.addChatMessage(appId, errorMessage, ChatHistoryMessageTypeEnum.AI.getValue(), LoginUser.getId());
+        });
     }
 
     @Override
@@ -208,4 +238,28 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 9. 返回可访问的 URL
         return String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
     }
+
+    /**
+     * 删除应用
+     * @param id 应用id
+     * @return 是否删除成功
+     */
+    @Override
+    public boolean removeById(Serializable id){
+        //校验
+        ThrowUtils.throwIf(id == null , ErrorCode.PARAMS_ERROR, "应用ID不能为空");
+        // 转换为 Long 类型
+        Long appId = Long.valueOf(id.toString());
+        ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR, "应用ID错误");
+
+        // 先删除关联的对话历史
+        try {
+            chatHistoryService.deleteByAppId(appId);
+        } catch (Exception e) {
+            // 记录日志但不阻止应用删除
+            log.error("删除应用关联对话历史失败: {}", e.getMessage());
+        }
+        // 删除应用
+        return super.removeById(id);
+    };
 }

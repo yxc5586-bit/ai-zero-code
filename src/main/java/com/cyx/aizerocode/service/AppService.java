@@ -1,6 +1,7 @@
 package com.cyx.aizerocode.service;
 
 import com.cyx.aizerocode.model.dto.app.AppQueryRequest;
+import com.cyx.aizerocode.model.dto.chathistory.ChatHistoryQueryRequest;
 import com.cyx.aizerocode.model.entity.App;
 import com.cyx.aizerocode.model.entity.User;
 import com.cyx.aizerocode.model.vo.AppVO;
@@ -8,6 +9,7 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
 import reactor.core.publisher.Flux;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**

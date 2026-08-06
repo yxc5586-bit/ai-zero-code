@@ -32,7 +32,7 @@ public class AuthInterceptor {
      * @return
      */
     @Around("@annotation(authCheck)")
-    public Object doInterceptor(ProceedingJoinPoint joinPoint, AuthCheck authCheck){
+    public Object doInterceptor(ProceedingJoinPoint joinPoint, AuthCheck authCheck) throws Throwable {
         //获取当前request
         String mustRole = authCheck.mustRole();
         ServletRequestAttributes currentUser = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
@@ -42,29 +42,23 @@ public class AuthInterceptor {
         User user = userService.getLoginUser(request);
         UserRoleEnum mustRoleEnum = UserRoleEnum.getEnumByValue(mustRole);
 
-        //权限比较
-        try {
-            //1.不需要权限
-            if (mustRoleEnum == null) {
-                return joinPoint.proceed();
-            }
-
-            //2.当需要权限时，先获取用户的权限等级
-            UserRoleEnum enumWithUser = UserRoleEnum.getEnumByValue(user.getUserRole());
-
-            //校验权限是否存在
-            if (enumWithUser == null) {
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-            }
-            //3.当权限等级小于等于用户权限等级时，允许访问
-            if (!UserRoleEnum.ADMIN.equals(enumWithUser) && UserRoleEnum.ADMIN.equals(mustRoleEnum)) {
-                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
-            }
+        // 1. 不需要权限
+        if (mustRoleEnum == null) {
             return joinPoint.proceed();
+        }
 
-        }catch (Throwable e){
+        // 2. 当需要权限时，先获取用户的权限等级
+        UserRoleEnum enumWithUser = UserRoleEnum.getEnumByValue(user.getUserRole());
+
+        // 校验权限是否存在
+        if (enumWithUser == null) {
             throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
         }
+        // 3. 管理员接口仅允许管理员访问
+        if (!UserRoleEnum.ADMIN.equals(enumWithUser) && UserRoleEnum.ADMIN.equals(mustRoleEnum)) {
+            throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+        }
+        return joinPoint.proceed();
 
     }
 
