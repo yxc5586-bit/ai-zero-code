@@ -14,6 +14,7 @@ const menuItems = computed(() => {
   if (loginUserStore.isAdmin) {
     items.push(
       { key: 'adminApp', label: '应用管理', path: '/admin/app' },
+      { key: 'adminChatHistory', label: '对话管理', path: '/admin/chatHistory' },
       { key: 'adminUser', label: '用户管理', path: '/admin/user' },
     )
   }
@@ -22,6 +23,7 @@ const menuItems = computed(() => {
 
 const selectedKeys = computed(() => {
   if (route.path.startsWith('/admin/app')) return ['adminApp']
+  if (route.path.startsWith('/admin/chatHistory')) return ['adminChatHistory']
   if (route.path.startsWith('/admin/user')) return ['adminUser']
   return route.path === '/' ? ['home'] : []
 })
@@ -85,6 +87,9 @@ const handleLogout = async () => {
               <template v-if="loginUserStore.isAdmin">
                 <a-menu-item key="adminApp" @click="router.push('/admin/app')"
                   >应用管理</a-menu-item
+                >
+                <a-menu-item key="adminChatHistory" @click="router.push('/admin/chatHistory')"
+                  >对话管理</a-menu-item
                 >
                 <a-menu-item key="adminUser" @click="router.push('/admin/user')"
                   >用户管理</a-menu-item

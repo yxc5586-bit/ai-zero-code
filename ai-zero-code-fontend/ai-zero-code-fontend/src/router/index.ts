@@ -39,6 +39,12 @@ const router = createRouter({
           meta: { requiresAuth: true, requiresAdmin: true },
         },
         {
+          path: 'admin/chatHistory',
+          name: 'adminChatHistory',
+          component: () => import('@/pages/AdminChatHistoryView.vue'),
+          meta: { requiresAuth: true, requiresAdmin: true },
+        },
+        {
           path: 'admin/user',
           name: 'adminUser',
           component: () => import('@/pages/AdminUserView.vue'),

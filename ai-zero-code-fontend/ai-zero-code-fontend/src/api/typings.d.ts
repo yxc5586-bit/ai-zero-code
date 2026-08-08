@@ -1,33 +1,41 @@
 declare namespace API {
-  type BaseResponse<T> = {
-    code?: number
-    data?: T
-    message?: string
+  type AppAddRequest = {
+    initPrompt?: string
   }
 
-  type AppAddRequest = { initPrompt?: string }
-  type AppAdminUpdateRequest = { id?: string; appName?: string; cover?: string; priority?: number }
-  type AppDeployRequest = { appId?: string }
-  type AppUpdateRequest = { id?: string; appName?: string }
-  type DeleteRequest = { id?: string }
+  type AppAdminUpdateRequest = {
+    id?: number
+    appName?: string
+    cover?: string
+    priority?: number
+  }
+
+  type AppDeployRequest = {
+    appId?: number
+  }
 
   type AppQueryRequest = {
     pageNum?: number
     pageSize?: number
     sortField?: string
     sortOrder?: string
-    id?: string
+    id?: number
     appName?: string
     cover?: string
     initPrompt?: string
     codeGenType?: string
     deployKey?: string
     priority?: number
-    userId?: string
+    userId?: number
+  }
+
+  type AppUpdateRequest = {
+    id?: number
+    appName?: string
   }
 
   type AppVO = {
-    id?: string
+    id?: number
     appName?: string
     cover?: string
     initPrompt?: string
@@ -35,24 +43,170 @@ declare namespace API {
     deployKey?: string
     deployedTime?: string
     priority?: number
-    userId?: string
+    userId?: number
     editTime?: string
     createTime?: string
     updateTime?: string
     createUser?: UserVO
   }
 
+  type BaseResponseAppVO = {
+    code?: number
+    data?: AppVO
+    message?: string
+  }
+
+  type BaseResponseBoolean = {
+    code?: number
+    data?: boolean
+    message?: string
+  }
+
+  type BaseResponseLoginUserVO = {
+    code?: number
+    data?: LoginUserVO
+    message?: string
+  }
+
+  type BaseResponseLong = {
+    code?: number
+    data?: number
+    message?: string
+  }
+
+  type BaseResponsePageAppVO = {
+    code?: number
+    data?: PageAppVO
+    message?: string
+  }
+
+  type BaseResponsePageChatHistory = {
+    code?: number
+    data?: PageChatHistory
+    message?: string
+  }
+
+  type BaseResponsePageUserVO = {
+    code?: number
+    data?: PageUserVO
+    message?: string
+  }
+
+  type BaseResponseString = {
+    code?: number
+    data?: string
+    message?: string
+  }
+
+  type BaseResponseUser = {
+    code?: number
+    data?: User
+    message?: string
+  }
+
+  type BaseResponseUserVO = {
+    code?: number
+    data?: UserVO
+    message?: string
+  }
+
+  type ChatHistory = {
+    id?: number
+    message?: string
+    messageType?: string
+    appId?: number
+    userId?: number
+    createTime?: string
+    updateTime?: string
+    isDelete?: number
+  }
+
+  type ChatHistoryQueryRequest = {
+    pageNum?: number
+    pageSize?: number
+    sortField?: string
+    sortOrder?: string
+    id?: number
+    message?: string
+    messageType?: string
+    appId?: number
+    userId?: number
+    lastCreateTime?: string
+  }
+
+  type chatToGenCodeParams = {
+    appId: number
+    message: string
+  }
+
+  type DeleteRequest = {
+    id?: number
+  }
+
+  type getAppVOByIdByAdminParams = {
+    id: number
+  }
+
+  type getAppVOByIdParams = {
+    id: number
+  }
+
+  type getUserByIdParams = {
+    id: number
+  }
+
+  type getUserVOByIdParams = {
+    id: number
+  }
+
+  type listAppChatHistoryParams = {
+    appId: number
+    pageSize?: number
+    lastCreateTime?: string
+  }
+
+  type LoginUserVO = {
+    id?: number
+    userAccount?: string
+    userName?: string
+    userAvatar?: string
+    userProfile?: string
+    userRole?: string
+    createTime?: string
+    updateTime?: string
+  }
+
   type PageAppVO = {
     records?: AppVO[]
-    pageNumber?: string
-    pageSize?: string
-    totalPage?: string
-    totalRow?: string
+    pageNumber?: number
+    pageSize?: number
+    totalPage?: number
+    totalRow?: number
     optimizeCountQuery?: boolean
   }
 
+  type PageChatHistory = {
+    records?: ChatHistory[]
+    pageNumber?: number
+    pageSize?: number
+    totalPage?: number
+    totalRow?: number
+    optimizeCountQuery?: boolean
+  }
+
+  type PageUserVO = {
+    records?: UserVO[]
+    pageNumber?: number
+    pageSize?: number
+    totalPage?: number
+    totalRow?: number
+    optimizeCountQuery?: boolean
+  }
+
+  type ServerSentEventString = true
+
   type User = {
-    id?: string
+    id?: number
     userAccount?: string
     userPassword?: string
     userName?: string
@@ -65,17 +219,6 @@ declare namespace API {
     isDelete?: number
   }
 
-  type UserVO = {
-    id?: string
-    userAccount?: string
-    userName?: string
-    userAvatar?: string
-    userProfile?: string
-    userRole?: string
-    createTime?: string
-  }
-
-  type LoginUserVO = UserVO & { updateTime?: string }
   type UserAddRequest = {
     userName?: string
     userAccount?: string
@@ -83,53 +226,45 @@ declare namespace API {
     userProfile?: string
     userRole?: string
   }
-  type UserLoginRequest = { userAccount?: string; userPassword?: string }
-  type UserRegisterRequest = {
+
+  type UserLoginRequest = {
     userAccount?: string
     userPassword?: string
-    checkPassword?: string
   }
-  type UserUpdateRequest = {
-    id?: string
-    userName?: string
-    userAvatar?: string
-    userProfile?: string
-    userRole?: string
-  }
+
   type UserQueryRequest = {
     pageNum?: number
     pageSize?: number
     sortField?: string
     sortOrder?: string
-    id?: string
+    id?: number
     userName?: string
     userAccount?: string
     userProfile?: string
     userRole?: string
   }
-  type PageUserVO = {
-    records?: UserVO[]
-    pageNumber?: string
-    pageSize?: string
-    totalPage?: string
-    totalRow?: string
-    optimizeCountQuery?: boolean
+
+  type UserRegisterRequest = {
+    userAccount?: string
+    userPassword?: string
+    checkPassword?: string
   }
 
-  type BaseResponseAppVO = BaseResponse<AppVO>
-  type BaseResponseBoolean = BaseResponse<boolean>
-  type BaseResponseLoginUserVO = BaseResponse<LoginUserVO>
-  type BaseResponseLong = BaseResponse<string>
-  type BaseResponsePageAppVO = BaseResponse<PageAppVO>
-  type BaseResponsePageUserVO = BaseResponse<PageUserVO>
-  type BaseResponseString = BaseResponse<string>
-  type BaseResponseUser = BaseResponse<User>
-  type BaseResponseUserVO = BaseResponse<UserVO>
-  type ServerSentEventString = true
+  type UserUpdateRequest = {
+    id?: number
+    userName?: string
+    userAvatar?: string
+    userProfile?: string
+    userRole?: string
+  }
 
-  type chatToGenCodeParams = { appId: string; message: string }
-  type getAppVOByIdByAdminParams = { id: string }
-  type getAppVOByIdParams = { id: string }
-  type getUserByIdParams = { id: string }
-  type getUserVOByIdParams = { id: string }
+  type UserVO = {
+    id?: number
+    userAccount?: string
+    userName?: string
+    userAvatar?: string
+    userProfile?: string
+    userRole?: string
+    createTime?: string
+  }
 }

@@ -105,7 +105,7 @@ const createApplication = async () => {
       return
     }
     sessionStorage.removeItem(PENDING_PROMPT_KEY)
-    await router.push({ name: 'appChat', params: { id: appId }, query: { autoSend: '1' } })
+    await router.push({ name: 'appChat', params: { id: appId } })
   } catch (error) {
     message.error(getApiErrorMessage(error, '创建应用失败'))
   } finally {

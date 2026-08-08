@@ -4,10 +4,11 @@ import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { deployApp, getAppVoById } from '@/api/appController'
+import { listAppChatHistory } from '@/api/chatHistoryController'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import type { ChatMessage } from '@/types/chat'
-import { getApiErrorMessage } from '@/utils/api'
+import { getApiErrorMessage, toSafePageNumber } from '@/utils/api'
 import { getStaticPreviewUrl, openExternalUrl } from '@/utils/format'
 import { openCodeGenerationStream, type CodeGenerationStream } from '@/utils/sse'
 
@@ -23,14 +24,18 @@ const inputMessage = ref('')
 const messages = ref<ChatMessage[]>([])
 const generating = ref(false)
 const deploying = ref(false)
-const previewReady = ref(route.query.autoSend !== '1')
+const previewReady = ref(false)
 const previewVersion = ref(Date.now())
 const mobilePanel = ref<'chat' | 'preview'>('chat')
 const messageListRef = ref<HTMLElement | null>(null)
 const showScrollButton = ref(false)
+const historyLoading = ref(false)
+const hasMoreHistory = ref(false)
 const deployModalVisible = ref(false)
 const deployedUrl = ref('')
 let activeStream: CodeGenerationStream | null = null
+
+const HISTORY_PAGE_SIZE = 10
 
 const isOwner = computed(() =>
   Boolean(appInfo.value?.userId && appInfo.value.userId === loginUserStore.loginUser?.id),
@@ -41,6 +46,77 @@ const previewUrl = computed(() =>
 )
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+const mapHistoryMessage = (record: API.ChatHistory): ChatMessage => ({
+  id: record.id ? `history-${record.id}` : `history-${record.createTime}-${createMessageId()}`,
+  role: record.messageType?.toLowerCase() === 'ai' ? 'assistant' : 'user',
+  content: record.message || '',
+  status: 'done',
+  createTime: record.createTime,
+})
+
+const sortMessagesByCreateTime = (items: ChatMessage[]) =>
+  [...items].sort((left, right) => {
+    const leftTime = left.createTime ? new Date(left.createTime).getTime() : 0
+    const rightTime = right.createTime ? new Date(right.createTime).getTime() : 0
+    if (leftTime !== rightTime) return leftTime - rightTime
+    return left.id.localeCompare(right.id)
+  })
+
+const loadChatHistory = async (initial = false) => {
+  if (historyLoading.value || (!initial && !hasMoreHistory.value)) return
+
+  const cursor = initial ? undefined : messages.value.find((item) => item.createTime)?.createTime
+  if (!initial && !cursor) {
+    hasMoreHistory.value = false
+    return
+  }
+
+  const container = messageListRef.value
+  const previousScrollHeight = container?.scrollHeight ?? 0
+  const previousScrollTop = container?.scrollTop ?? 0
+  historyLoading.value = true
+
+  try {
+    const response = await listAppChatHistory({
+      appId: appId.value,
+      pageSize: HISTORY_PAGE_SIZE,
+      lastCreateTime: cursor,
+    })
+    if (response.data.code !== 0) {
+      throw new Error(response.data.message || '对话历史加载失败')
+    }
+
+    const pageData = response.data.data
+    const historyRecords = pageData?.records ?? []
+    const pageMessages = sortMessagesByCreateTime(historyRecords.map(mapHistoryMessage))
+    const existingIds = new Set(messages.value.map((item) => item.id))
+    const uniqueMessages = pageMessages.filter((item) => !existingIds.has(item.id))
+
+    messages.value = initial ? uniqueMessages : [...uniqueMessages, ...messages.value]
+
+    const remainingTotal = toSafePageNumber(pageData?.totalRow, -1)
+    hasMoreHistory.value =
+      remainingTotal >= 0
+        ? remainingTotal > historyRecords.length
+        : historyRecords.length === HISTORY_PAGE_SIZE
+
+    if (initial) {
+      previewReady.value = historyRecords.length >= 2
+      await scrollToBottom(true)
+    } else {
+      await nextTick()
+      if (container) {
+        container.scrollTop = previousScrollTop + container.scrollHeight - previousScrollHeight
+      }
+    }
+  } catch (error) {
+    if (initial) throw error
+    message.error(getApiErrorMessage(error, '更早的对话历史加载失败'))
+  } finally {
+    historyLoading.value = false
+  }
+}
 
 const scrollToBottom = async (force = false) => {
   await nextTick()
@@ -185,6 +261,7 @@ const openDeployedSite = () => {
 
 const loadApplication = async () => {
   loading.value = true
+  loadError.value = ''
   try {
     const response = await getAppVoById({ id: appId.value })
     if (response.data.code !== 0 || !response.data.data) {
@@ -198,22 +275,10 @@ const loadApplication = async () => {
       return
     }
 
-    const shouldAutoSend = route.query.autoSend === '1'
-    if (shouldAutoSend && appInfo.value.initPrompt) {
-      const nextQuery = { ...route.query }
-      delete nextQuery.autoSend
-      await router.replace({ query: nextQuery })
+    await loadChatHistory(true)
+
+    if (messages.value.length === 0 && appInfo.value.initPrompt) {
       await startGeneration(appInfo.value.initPrompt)
-    } else if (appInfo.value.initPrompt) {
-      messages.value = [
-        {
-          id: createMessageId(),
-          role: 'user',
-          content: appInfo.value.initPrompt,
-          status: 'done',
-        },
-      ]
-      await scrollToBottom(true)
     }
   } catch (error) {
     loadError.value = getApiErrorMessage(error, '应用加载失败')
@@ -289,8 +354,10 @@ onBeforeUnmount(() => {
           </div>
 
           <div ref="messageListRef" class="message-list" @scroll="handleMessageScroll">
-            <div v-if="messages.length === 1 && !generating" class="resume-note">
-              历史 AI 回复暂未保存，但已生成的网站仍可在预览区查看。你可以继续描述修改需求。
+            <div v-if="hasMoreHistory || historyLoading" class="history-loader">
+              <a-button type="link" :loading="historyLoading" @click="loadChatHistory(false)">
+                {{ historyLoading ? '正在加载历史消息' : '加载更多历史消息' }}
+              </a-button>
             </div>
 
             <article
@@ -601,15 +668,17 @@ onBeforeUnmount(() => {
   scroll-behavior: smooth;
 }
 
-.resume-note {
-  margin-bottom: 22px;
-  padding: 10px 12px;
-  color: #65758b;
-  font-size: 12px;
-  line-height: 1.6;
+.history-loader {
+  display: flex;
+  justify-content: center;
+  min-height: 34px;
+  margin-bottom: 16px;
   text-align: center;
-  background: #f7f9fb;
-  border-radius: 10px;
+}
+
+.history-loader :deep(.ant-btn-link) {
+  color: var(--app-blue-deep);
+  font-size: 12px;
 }
 
 .message-row {
