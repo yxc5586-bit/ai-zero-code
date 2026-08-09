@@ -3,7 +3,9 @@ package com.cyx.aizerocode.ai;
 
 import com.cyx.aizerocode.ai.model.HtmlCodeResult;
 import com.cyx.aizerocode.ai.model.MultiFileCodeResult;
+import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -44,5 +46,14 @@ public interface AiCodeGeneratorService {
      */
     @SystemMessage(fromResource = "prompt/codegen-multi-file-system-prompt.txt")
     Flux<String> generateMultiFileCodeStream(String message);
+
+
+    /**
+     *  流式生成 Vue 工程代码
+     * @param message 用户消息
+     * @return 流式生成的代码结果
+     */
+    @SystemMessage(fromResource = "prompt/codegen-vue-project-system-prompt.txt")
+    Flux<String> generateVueProjectCodeStream(@UserMessage String message, @MemoryId long appId);
 
 }
