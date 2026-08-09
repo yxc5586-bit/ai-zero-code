@@ -1,3 +1,6 @@
+import { APP_DEPLOY_BASE_URL, APP_PREVIEW_BASE_URL } from '@/config/app'
+import { CodeGenTypeEnum } from '@/types/codeGenType'
+
 export const formatDateTime = (value?: string) => {
   if (!value) return '—'
   const date = new Date(value)
@@ -41,10 +44,10 @@ export const getDeployUrl = (deployKey?: string) =>
 
 export const getStaticPreviewUrl = (app: Pick<API.AppVO, 'id' | 'codeGenType'>) => {
   if (!app.id || !app.codeGenType) return ''
-  return `${APP_PREVIEW_BASE_URL}/${app.codeGenType}_${app.id}/`
+  const distPath = app.codeGenType === CodeGenTypeEnum.VUE_PROJECT ? 'dist/index.html' : ''
+  return `${APP_PREVIEW_BASE_URL}/${app.codeGenType}_${app.id}/${distPath}`
 }
 
 export const openExternalUrl = (url?: string) => {
   if (url) window.open(url, '_blank', 'noopener,noreferrer')
 }
-import { APP_DEPLOY_BASE_URL, APP_PREVIEW_BASE_URL } from '@/config/app'
