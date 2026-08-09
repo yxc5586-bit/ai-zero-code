@@ -72,7 +72,7 @@ public class AppController {
         app.setAppName(appService.getDefaultAppName(initPrompt));
         app.setPriority(AppConstant.DEFAULT_APP_PRIORITY);
         app.setUserId(loginUser.getId());
-        app.setCodeGenType(CodeGenTypeEnum.MULTI_FILE.getValue());
+        app.setCodeGenType(CodeGenTypeEnum.VUE_PROJECT.getValue());
         // 插入到数据库
         boolean result = appService.save(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建应用失败");
