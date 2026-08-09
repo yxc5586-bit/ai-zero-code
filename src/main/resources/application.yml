@@ -6,12 +6,29 @@ spring:
     url: jdbc:mysql://localhost:3306/zerocode
     username: root
     password: `${MYSQL_PASSWORD:}
+  #Redis
+  data:
+    redis:
+      port: 6379
+      password:
+      ttl: 3600
+      database: 0
+      host: localhost
+  # 后端 session 配置
+  session:
+    store-type: redis
+    # session 30 天过期
+    timeout: 2592000
   profiles:
     active: local
 server:
   port: 8123
   servlet:
     context-path: '/api'
+    # 前端 cookie 30 天过期
+    session:
+      cookie:
+        max-age: 2592000
 
 # AI
 langchain4j:
