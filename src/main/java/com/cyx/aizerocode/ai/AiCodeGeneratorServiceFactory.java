@@ -1,7 +1,10 @@
 package com.cyx.aizerocode.ai;
 
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
+import com.cyx.aizerocode.ai.tools.FileDirReadTool;
+import com.cyx.aizerocode.ai.tools.FileReadTool;
 import com.cyx.aizerocode.ai.tools.FileWriteTool;
+import com.cyx.aizerocode.ai.tools.ToolManager;
 import com.cyx.aizerocode.exception.BusinessException;
 import com.cyx.aizerocode.exception.ErrorCode;
 import com.cyx.aizerocode.service.ChatHistoryService;
@@ -49,6 +52,9 @@ public class AiCodeGeneratorServiceFactory {
     public AiCodeGeneratorService aiCodeGeneratorService() {
         return getAiCodeGeneratorService(0);
     }
+
+    @Resource
+    private ToolManager toolManager;
 
     /**
      * 使用 Caffeine 缓存 AI 服务实例，避免重复创建
@@ -104,10 +110,9 @@ public class AiCodeGeneratorServiceFactory {
         return switch (codeGenType){
             // Vue 项目 使用不同模型
             case VUE_PROJECT -> AiServices.builder(AiCodeGeneratorService.class)
-                        .chatModel(chatModel)
                         .streamingChatModel(reasoningStreamingChatModel)
                         .chatMemoryProvider(memoryId -> chatMemory)
-                        .tools(new FileWriteTool())
+                        .tools( toolManager.getAllTools())
                         .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(
                                 toolExecutionRequest, "Error: there is no tool called " + toolExecutionRequest.name()
                         ))
