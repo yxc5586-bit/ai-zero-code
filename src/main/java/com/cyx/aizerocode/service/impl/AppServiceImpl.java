@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.cyx.aizerocode.ai.AiCodeGenTypeRoutingService;
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
 import com.cyx.aizerocode.constant.AppConstant;
 import com.cyx.aizerocode.core.AiCodeGeneratorFacade;
@@ -13,6 +14,7 @@ import com.cyx.aizerocode.exception.BusinessException;
 import com.cyx.aizerocode.exception.ErrorCode;
 import com.cyx.aizerocode.exception.ThrowUtils;
 import com.cyx.aizerocode.mapper.AppMapper;
+import com.cyx.aizerocode.model.dto.app.AppAddRequest;
 import com.cyx.aizerocode.model.dto.app.AppQueryRequest;
 import com.cyx.aizerocode.model.entity.App;
 import com.cyx.aizerocode.model.entity.User;
@@ -71,6 +73,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private ScreenshotService screenshotService;
+
+    @Resource
+    private AiCodeGenTypeRoutingService aiCodeGenTypeRoutingService;
 
     @Override
     public QueryWrapper getQueryWrapper(AppQueryRequest appQueryRequest) {
@@ -264,6 +269,25 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             boolean updated = this.updateById(updateApp);
             ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "更新应用封面字段失败");
         });
+    }
+
+    @Override
+    public Long createApp(AppAddRequest appAddRequest, User loginUser) {
+        // 校验非空
+        String initPrompt = appAddRequest.getInitPrompt();
+        ThrowUtils.throwIf(StrUtil.isBlank(initPrompt), ErrorCode.PARAMS_ERROR, "应用初始化 prompt 不能为空");
+        // 构建app对象并设置应用信息
+        App app = new App();
+        app.setInitPrompt(initPrompt);
+        app.setAppName(this.getDefaultAppName(initPrompt));
+        app.setPriority(AppConstant.DEFAULT_APP_PRIORITY);
+        app.setUserId(loginUser.getId());
+        CodeGenTypeEnum selectedCodeGenType = aiCodeGenTypeRoutingService.routeCodeGenType(initPrompt);
+        app.setCodeGenType(selectedCodeGenType.getValue());
+        // 插入到数据库
+        boolean result = this.save(app);
+        ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建应用失败");
+        return app.getId();
     }
 
     /**

@@ -1,7 +1,8 @@
 package com.cyx.aizerocode.service;
 
+import com.cyx.aizerocode.model.dto.app.AppAddRequest;
 import com.cyx.aizerocode.model.dto.app.AppQueryRequest;
-import com.cyx.aizerocode.model.dto.chathistory.ChatHistoryQueryRequest;
+
 import com.cyx.aizerocode.model.entity.App;
 import com.cyx.aizerocode.model.entity.User;
 import com.cyx.aizerocode.model.vo.AppVO;
@@ -9,7 +10,6 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.service.IService;
 import reactor.core.publisher.Flux;
 
-import java.io.Serializable;
 import java.util.List;
 
 /**
@@ -80,4 +80,13 @@ public interface AppService extends IService<App> {
      * @param appUrl 应用访问URL
      */
     void generateAppScreenshotAsync(Long appId, String appUrl);
+
+    /**
+     * 创建应用
+     *
+     * @param appAddRequest 应用添加请求
+     * @param loginUser     登录用户
+     * @return 应用ID
+     */
+    Long createApp(AppAddRequest appAddRequest, User loginUser);
 }
