@@ -11,6 +11,12 @@ import type { ChatMessage } from '@/types/chat'
 import { getApiErrorMessage, toSafePageNumber } from '@/utils/api'
 import { formatCodeGenType, getStaticPreviewUrl, openExternalUrl } from '@/utils/format'
 import { openCodeGenerationStream, type CodeGenerationStream } from '@/utils/sse'
+import {
+  buildVisualEditPrompt,
+  createVisualEditor,
+  stripVisualEditContext,
+  type VisualEditorElementInfo,
+} from '@/utils/visualEditor'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,6 +40,9 @@ const historyLoading = ref(false)
 const hasMoreHistory = ref(false)
 const deployModalVisible = ref(false)
 const deployedUrl = ref('')
+const previewIframeRef = ref<HTMLIFrameElement | null>(null)
+const isVisualEditing = ref(false)
+const selectedElement = ref<VisualEditorElementInfo | null>(null)
 let activeStream: CodeGenerationStream | null = null
 
 const HISTORY_PAGE_SIZE = 10
@@ -45,16 +54,34 @@ const previewBaseUrl = computed(() => (appInfo.value ? getStaticPreviewUrl(appIn
 const previewUrl = computed(() =>
   previewBaseUrl.value ? `${previewBaseUrl.value}?preview=${previewVersion.value}` : '',
 )
+const selectedElementLabel = computed(() => {
+  const element = selectedElement.value
+  if (!element) return ''
+  if (element.id) return `<${element.tagName}#${element.id}>`
+  if (element.classNames[0]) return `<${element.tagName}.${element.classNames[0]}>`
+  return `<${element.tagName}>`
+})
+
+const visualEditor = createVisualEditor({
+  onElementSelected(element) {
+    selectedElement.value = element
+    mobilePanel.value = 'chat'
+  },
+})
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
-const mapHistoryMessage = (record: API.ChatHistory): ChatMessage => ({
-  id: record.id ? `history-${record.id}` : `history-${record.createTime}-${createMessageId()}`,
-  role: record.messageType?.toLowerCase() === 'ai' ? 'assistant' : 'user',
-  content: record.message || '',
-  status: 'done',
-  createTime: record.createTime,
-})
+const mapHistoryMessage = (record: API.ChatHistory): ChatMessage => {
+  const role = record.messageType?.toLowerCase() === 'ai' ? 'assistant' : 'user'
+  const content = record.message || ''
+  return {
+    id: record.id ? `history-${record.id}` : `history-${record.createTime}-${createMessageId()}`,
+    role,
+    content: role === 'user' ? stripVisualEditContext(content) : content,
+    status: 'done',
+    createTime: record.createTime,
+  }
+}
 
 const sortMessagesByCreateTime = (items: ChatMessage[]) =>
   [...items].sort((left, right) => {
@@ -138,9 +165,21 @@ const handleMessageScroll = () => {
     container.scrollHeight - container.scrollTop - container.clientHeight > 180
 }
 
-const startGeneration = async (content: string) => {
+const clearSelectedElement = () => {
+  selectedElement.value = null
+  visualEditor.clearSelection()
+}
+
+const resetVisualEditing = () => {
+  isVisualEditing.value = false
+  selectedElement.value = null
+  visualEditor.setEnabled(false)
+}
+
+const startGeneration = async (content: string, requestContent = content) => {
   const value = content.trim()
-  if (!value || generating.value || !isOwner.value) return
+  const requestValue = requestContent.trim()
+  if (!value || !requestValue || generating.value || !isOwner.value) return
 
   const userMessage: ChatMessage = {
     id: createMessageId(),
@@ -156,10 +195,12 @@ const startGeneration = async (content: string) => {
     content: '',
     status: 'streaming',
     sourceMessage: value,
+    sourceRequestMessage: requestValue,
   })
 
   messages.value.push(userMessage, assistantMessage)
   inputMessage.value = ''
+  resetVisualEditing()
   generating.value = true
   mobilePanel.value = 'chat'
   await scrollToBottom(true)
@@ -167,7 +208,7 @@ const startGeneration = async (content: string) => {
   activeStream?.close()
   activeStream = openCodeGenerationStream({
     appId: appId.value,
-    message: value,
+    message: requestValue,
     onChunk(chunk) {
       assistantMessage.content += chunk
       void scrollToBottom()
@@ -192,7 +233,13 @@ const startGeneration = async (content: string) => {
   })
 }
 
-const sendCurrentMessage = () => startGeneration(inputMessage.value)
+const sendCurrentMessage = () => {
+  const content = inputMessage.value.trim()
+  const requestContent = selectedElement.value
+    ? buildVisualEditPrompt(content, selectedElement.value)
+    : content
+  void startGeneration(content, requestContent)
+}
 
 const handleInputKeydown = (event: KeyboardEvent) => {
   if (event.key === 'Enter' && !event.shiftKey) {
@@ -202,11 +249,14 @@ const handleInputKeydown = (event: KeyboardEvent) => {
 }
 
 const retryMessage = (item: ChatMessage) => {
-  if (item.sourceMessage) startGeneration(item.sourceMessage)
+  if (item.sourceMessage) {
+    void startGeneration(item.sourceMessage, item.sourceRequestMessage || item.sourceMessage)
+  }
 }
 
 const refreshPreview = () => {
   if (!previewReady.value) return
+  resetVisualEditing()
   previewVersion.value = Date.now()
 }
 
@@ -225,6 +275,30 @@ const handlePreviewLoad = (event: Event) => {
     doc.body.style.minHeight = '100%'
     doc.body.style.overflowY = 'auto'
   }
+
+  selectedElement.value = null
+  const attached = iframe ? visualEditor.attach(iframe) : false
+  if (isVisualEditing.value && (!attached || !visualEditor.setEnabled(true))) {
+    resetVisualEditing()
+    message.warning('预览页面必须与主站同源才能使用可视化编辑')
+  }
+}
+
+const toggleVisualEditing = () => {
+  if (isVisualEditing.value) {
+    resetVisualEditing()
+    return
+  }
+
+  const iframe = previewIframeRef.value
+  if (!iframe || !visualEditor.attach(iframe) || !visualEditor.setEnabled(true)) {
+    message.warning('预览页面必须与主站同源才能使用可视化编辑')
+    return
+  }
+
+  isVisualEditing.value = true
+  selectedElement.value = null
+  mobilePanel.value = 'preview'
 }
 
 const handleDeploy = async () => {
@@ -333,6 +407,7 @@ const loadApplication = async () => {
 onMounted(loadApplication)
 onBeforeUnmount(() => {
   activeStream?.close()
+  visualEditor.destroy()
 })
 </script>
 
@@ -464,6 +539,24 @@ onBeforeUnmount(() => {
           </button>
 
           <div class="composer">
+            <a-alert
+              v-if="selectedElement"
+              class="selected-element-alert"
+              type="info"
+              show-icon
+              closable
+              @close="clearSelectedElement"
+            >
+              <template #message>已选择元素 {{ selectedElementLabel }}</template>
+              <template #description>
+                <div class="selected-element-info">
+                  <code>{{ selectedElement.selector }}</code>
+                  <span v-if="selectedElement.textContent">
+                    {{ selectedElement.textContent }}
+                  </span>
+                </div>
+              </template>
+            </a-alert>
             <a-textarea
               v-model:value="inputMessage"
               :auto-size="{ minRows: 3, maxRows: 7 }"
@@ -475,14 +568,25 @@ onBeforeUnmount(() => {
               <span>{{
                 generating ? '生成期间暂不能发送新消息' : 'AI 可能会出错，请检查生成结果'
               }}</span>
-              <a-button
-                type="primary"
-                :loading="generating"
-                :disabled="!inputMessage.trim()"
-                @click="sendCurrentMessage"
-              >
-                发送
-              </a-button>
+              <div class="composer__actions">
+                <a-button
+                  class="visual-edit-button"
+                  :class="{ 'visual-edit-button--active': isVisualEditing }"
+                  :type="isVisualEditing ? 'primary' : 'default'"
+                  :disabled="!previewReady || generating || !isOwner"
+                  @click="toggleVisualEditing"
+                >
+                  {{ isVisualEditing ? '退出编辑' : '可视化编辑' }}
+                </a-button>
+                <a-button
+                  type="primary"
+                  :loading="generating"
+                  :disabled="!inputMessage.trim()"
+                  @click="sendCurrentMessage"
+                >
+                  发送
+                </a-button>
+              </div>
             </div>
           </div>
         </section>
@@ -502,6 +606,7 @@ onBeforeUnmount(() => {
             <iframe
               v-if="previewReady && previewUrl"
               :key="previewVersion"
+              ref="previewIframeRef"
               :src="previewUrl"
               :title="`${appInfo?.appName || '应用'}网站预览`"
               scrolling="yes"
@@ -884,6 +989,42 @@ onBeforeUnmount(() => {
   box-shadow: 0 -10px 24px rgba(18, 62, 86, 0.04);
 }
 
+.selected-element-alert {
+  margin-bottom: 10px;
+  text-align: left;
+}
+
+.selected-element-alert :deep(.ant-alert-message) {
+  color: var(--app-ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.selected-element-info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selected-element-info code {
+  overflow: hidden;
+  color: var(--app-blue-deep);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-element-info span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 :deep(.composer .ant-input) {
   max-height: 180px;
   padding: 4px 5px 10px;
@@ -907,8 +1048,24 @@ onBeforeUnmount(() => {
   font-size: 11px;
 }
 
+.composer__actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.composer__actions :deep(.visual-edit-button--active) {
+  background: var(--app-blue);
+  border-color: var(--app-blue);
+}
+
 .composer__footer :deep(.ant-btn-primary) {
   background: var(--app-primary);
+}
+
+.composer__footer :deep(.visual-edit-button--active) {
+  background: var(--app-blue);
 }
 
 .preview-panel {
@@ -1198,6 +1355,15 @@ onBeforeUnmount(() => {
 
   .message-bubble {
     max-width: 90%;
+  }
+
+  .composer__footer > span {
+    display: none;
+  }
+
+  .composer__actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>

@@ -6,5 +6,6 @@ export type ChatMessage = {
   content: string
   status: ChatMessageStatus
   sourceMessage?: string
+  sourceRequestMessage?: string
   createTime?: string
 }
