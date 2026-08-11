@@ -2,7 +2,13 @@
 import { computed } from 'vue'
 
 import AppCover from '@/components/AppCover.vue'
-import { formatDateTime, getDeployUrl, getStaticPreviewUrl, openExternalUrl } from '@/utils/format'
+import {
+  formatCodeGenType,
+  formatDateTime,
+  getDeployUrl,
+  getStaticPreviewUrl,
+  openExternalUrl,
+} from '@/utils/format'
 
 const props = withDefaults(
   defineProps<{
@@ -44,9 +50,9 @@ const creatorName = computed(
         <a-descriptions-item label="应用名称">{{ app.appName || '—' }}</a-descriptions-item>
         <a-descriptions-item label="应用 ID">{{ app.id || '—' }}</a-descriptions-item>
         <a-descriptions-item label="创建用户">{{ creatorName }}</a-descriptions-item>
-        <a-descriptions-item label="生成类型">
-          {{ app.codeGenType === 'html' ? 'HTML' : '多文件' }}
-        </a-descriptions-item>
+        <a-descriptions-item label="生成类型">{{
+          formatCodeGenType(app.codeGenType)
+        }}</a-descriptions-item>
         <a-descriptions-item label="优先级">{{ app.priority ?? 0 }}</a-descriptions-item>
         <a-descriptions-item label="部署状态">
           <a-badge

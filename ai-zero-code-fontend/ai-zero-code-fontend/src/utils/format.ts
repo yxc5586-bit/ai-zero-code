@@ -1,6 +1,12 @@
 import { APP_DEPLOY_BASE_URL, APP_PREVIEW_BASE_URL } from '@/config/app'
 import { CodeGenTypeEnum } from '@/types/codeGenType'
 
+const CODE_GEN_TYPE_LABELS: Record<string, string> = {
+  [CodeGenTypeEnum.HTML]: '原生 HTML 模式',
+  [CodeGenTypeEnum.MULTI_FILE]: '原生多文件模式',
+  [CodeGenTypeEnum.VUE_PROJECT]: 'Vue 工程模式',
+}
+
 export const formatDateTime = (value?: string) => {
   if (!value) return '—'
   const date = new Date(value)
@@ -37,6 +43,10 @@ export const formatRelativeTime = (value?: string) => {
   }
 
   return '刚刚'
+}
+
+export const formatCodeGenType = (value?: string) => {
+  return value ? CODE_GEN_TYPE_LABELS[value] || value : '—'
 }
 
 export const getDeployUrl = (deployKey?: string) =>

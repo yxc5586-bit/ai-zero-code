@@ -3,13 +3,13 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'v
 import { message } from 'ant-design-vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { deployApp, getAppVoById } from '@/api/appController'
+import { deployApp, downloadAppCode, getAppVoById } from '@/api/appController'
 import { listAppChatHistory } from '@/api/chatHistoryController'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import type { ChatMessage } from '@/types/chat'
 import { getApiErrorMessage, toSafePageNumber } from '@/utils/api'
-import { getStaticPreviewUrl, openExternalUrl } from '@/utils/format'
+import { formatCodeGenType, getStaticPreviewUrl, openExternalUrl } from '@/utils/format'
 import { openCodeGenerationStream, type CodeGenerationStream } from '@/utils/sse'
 
 const route = useRoute()
@@ -23,6 +23,7 @@ const loadError = ref('')
 const inputMessage = ref('')
 const messages = ref<ChatMessage[]>([])
 const generating = ref(false)
+const downloading = ref(false)
 const deploying = ref(false)
 const previewReady = ref(false)
 const previewVersion = ref(Date.now())
@@ -246,6 +247,48 @@ const handleDeploy = async () => {
   }
 }
 
+const handleDownload = async () => {
+  if (!isOwner.value || generating.value || downloading.value) return
+  downloading.value = true
+  try {
+    // Long 类型应用 ID 超过 JavaScript 安全整数范围，必须保留路由中的原始字符串
+    const response = await downloadAppCode(
+      { appId: appId.value as unknown as number },
+      { responseType: 'blob' },
+    )
+    const contentType = String(response.headers['content-type'] || response.data?.type || '')
+    if (!contentType.includes('application/zip')) {
+      const errorText = response.data instanceof Blob ? await response.data.text() : ''
+      let errorMessage = '下载代码失败'
+      try {
+        errorMessage = JSON.parse(errorText).message || errorMessage
+      } catch {
+        errorMessage = errorText || errorMessage
+      }
+      throw new Error(errorMessage)
+    }
+    const contentDisposition = response.headers['content-disposition'] as string | undefined
+    const encodedFileName = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+    const fileName = encodedFileName
+      ? decodeURIComponent(encodedFileName)
+      : contentDisposition?.match(/filename="?([^";]+)"?/i)?.[1] ||
+        `${appInfo.value?.appName || '应用代码'}.zip`
+    const downloadUrl = URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(downloadUrl), 0)
+    message.success('代码下载已开始')
+  } catch (error) {
+    message.error(getApiErrorMessage(error, '下载代码失败，请先确认网站已经生成'))
+  } finally {
+    downloading.value = false
+  }
+}
+
 const copyDeployUrl = async () => {
   try {
     await navigator.clipboard.writeText(deployedUrl.value)
@@ -298,14 +341,22 @@ onBeforeUnmount(() => {
     <header class="workspace__header">
       <button class="workspace-brand" type="button" @click="router.push('/')">
         <img src="/logo.png" alt="" />
-        <span>
-          <strong>{{ appInfo?.appName || '应用生成工作台' }}</strong>
+        <span class="workspace-brand__text">
+          <span class="workspace-brand__title">
+            <strong>{{ appInfo?.appName || '应用生成工作台' }}</strong>
+            <span v-if="appInfo?.codeGenType" class="workspace-brand__type">
+              {{ formatCodeGenType(appInfo.codeGenType) }}
+            </span>
+          </span>
           <small>AI ZeroCode Workspace</small>
         </span>
       </button>
       <div class="workspace__header-actions">
         <a-button @click="router.push('/')">返回首页</a-button>
         <a-button :disabled="!previewReady" @click="refreshPreview">刷新预览</a-button>
+        <a-button :loading="downloading" :disabled="!isOwner || generating" @click="handleDownload">
+          下载代码
+        </a-button>
         <a-button
           type="primary"
           :loading="deploying"
@@ -541,13 +592,21 @@ onBeforeUnmount(() => {
   border-radius: 50%;
 }
 
-.workspace-brand span {
+.workspace-brand__text {
   display: flex;
   min-width: 0;
   flex-direction: column;
 }
 
+.workspace-brand__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
 .workspace-brand strong {
+  min-width: 0;
   max-width: 420px;
   overflow: hidden;
   color: var(--app-ink);
@@ -555,6 +614,17 @@ onBeforeUnmount(() => {
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.workspace-brand__type {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  color: var(--app-blue-deep);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  background: #eaf2ff;
+  border-radius: 6px;
 }
 
 .workspace-brand small {

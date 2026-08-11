@@ -4,7 +4,12 @@ import { useRouter } from 'vue-router'
 
 import AppCover from '@/components/AppCover.vue'
 import { useLoginUserStore } from '@/stores/loginUser'
-import { formatRelativeTime, getDeployUrl, openExternalUrl } from '@/utils/format'
+import {
+  formatCodeGenType,
+  formatRelativeTime,
+  getDeployUrl,
+  openExternalUrl,
+} from '@/utils/format'
 
 const props = defineProps<{ app: API.AppVO; editable?: boolean }>()
 const emit = defineEmits<{
@@ -80,7 +85,7 @@ const editApp = () => {
     >
       <div class="app-card__title-row">
         <h3>{{ app.appName || '未命名应用' }}</h3>
-        <span>{{ app.codeGenType === 'html' ? 'HTML' : '多文件' }}</span>
+        <span>{{ formatCodeGenType(app.codeGenType) }}</span>
       </div>
       <p>{{ app.initPrompt || '这个应用还没有补充描述。' }}</p>
       <div class="app-card__meta">
