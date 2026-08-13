@@ -127,6 +127,19 @@
 			<version>1.18.1-beta28</version>
 		</dependency>
 
+		<!--	LangGraph4j依赖	-->
+		<dependency>
+			<groupId>org.bsc.langgraph4j</groupId>
+			<artifactId>langgraph4j-core</artifactId>
+			<version>1.8.20</version> <!-- Or the current snapshot version -->
+		</dependency>
+		<!-- 阿里云 DashScope SDK -->
+		<dependency>
+			<groupId>com.alibaba</groupId>
+			<artifactId>dashscope-sdk-java</artifactId>
+			<version>2.21.1</version>
+		</dependency>
+
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
