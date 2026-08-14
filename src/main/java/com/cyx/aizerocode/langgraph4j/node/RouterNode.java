@@ -1,6 +1,7 @@
 package com.cyx.aizerocode.langgraph4j.node;
 
 import com.cyx.aizerocode.ai.AiCodeGenTypeRoutingService;
+import com.cyx.aizerocode.ai.AiCodeGenTypeRoutingServiceFactory;
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
 import com.cyx.aizerocode.langgraph4j.state.WorkflowContext;
 import com.cyx.aizerocode.langgraph4j.tools.SpringContextUtil;
@@ -22,7 +23,8 @@ public class RouterNode {
             CodeGenTypeEnum generationType;
             try {
                 // 获取AI路由服务
-                AiCodeGenTypeRoutingService routingService = SpringContextUtil.getBean(AiCodeGenTypeRoutingService.class);
+                AiCodeGenTypeRoutingServiceFactory factory = SpringContextUtil.getBean(AiCodeGenTypeRoutingServiceFactory.class);
+                AiCodeGenTypeRoutingService routingService = factory.createAiCodeGenTypeRoutingService();
                 // 根据原始提示词进行智能路由
                 generationType = routingService.routeCodeGenType(context.getOriginalPrompt());
                 log.info("AI智能路由完成，选择类型: {} ({})", generationType.getValue(), generationType.getText());
