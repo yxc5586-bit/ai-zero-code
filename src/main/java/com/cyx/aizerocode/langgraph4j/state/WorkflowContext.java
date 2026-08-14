@@ -1,6 +1,7 @@
 package com.cyx.aizerocode.langgraph4j.state;
 
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
+import com.cyx.aizerocode.langgraph4j.model.QualityResult;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -70,6 +71,11 @@ public class WorkflowContext implements Serializable {
      * 错误信息
      */
     private String errorMessage;
+
+    /**
+     * 质量检查结果
+     */
+    private QualityResult qualityResult;
 
     @Serial
     private static final long serialVersionUID = 1L;
