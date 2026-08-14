@@ -22,6 +22,8 @@ export const openCodeGenerationStream = (
   let finished = false
 
   eventSource.onmessage = (event) => {
+    if (finished) return
+
     try {
       const payload = JSON.parse(event.data) as { d?: string }
       if (typeof payload.d === 'string') {
@@ -33,13 +35,32 @@ export const openCodeGenerationStream = (
   }
 
   eventSource.addEventListener('done', () => {
+    if (finished) return
+
     finished = true
     eventSource.close()
     options.onDone()
   })
 
+  eventSource.addEventListener('business-error', (event) => {
+    if (finished) return
+
+    try {
+      const payload = JSON.parse((event as MessageEvent<string>).data) as { message?: string }
+      const errorMessage = payload.message || '生成过程中出现错误'
+      finished = true
+      eventSource.close()
+      options.onError(new Error(errorMessage))
+    } catch {
+      finished = true
+      eventSource.close()
+      options.onError(new Error('服务器返回错误'))
+    }
+  })
+
   eventSource.onerror = () => {
     if (finished) return
+    finished = true
     eventSource.close()
     options.onError(new Error('生成连接中断，请检查服务状态后重试'))
   }

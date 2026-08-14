@@ -1,5 +1,6 @@
 package com.cyx.aizerocode.ai;
 
+import com.cyx.aizerocode.ai.PromptSafetyInputGuardrail.PromptSafetyInputGuardrail;
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
 import com.cyx.aizerocode.ai.tools.ToolManager;
 import com.cyx.aizerocode.exception.BusinessException;
@@ -107,6 +108,7 @@ public class AiCodeGeneratorServiceFactory {
                         .streamingChatModel(reasoningStreamingChatModel)
                         .chatMemoryProvider(memoryId -> chatMemory)
                         .tools(toolManager.getAllTools())
+                        .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入安全检查互轨
                         .hallucinatedToolNameStrategy(toolExecutionRequest -> ToolExecutionResultMessage.from(
                                 toolExecutionRequest, "Error: there is no tool called " + toolExecutionRequest.name()
                         ))
@@ -120,6 +122,7 @@ public class AiCodeGeneratorServiceFactory {
                         .chatModel(chatModel)
                         .streamingChatModel(openAiStreamingChatModel)
                         .chatMemory(chatMemory)
+                        .inputGuardrails(new PromptSafetyInputGuardrail()) // 添加输入安全检查互轨
                         .build();
             }
 
