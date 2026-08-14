@@ -1,6 +1,6 @@
 package com.cyx.aizerocode.ai;
 
-import com.cyx.aizerocode.ai.PromptSafetyInputGuardrail.PromptSafetyInputGuardrail;
+import com.cyx.aizerocode.ai.guardrail.PromptSafetyInputGuardrail;
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
 import com.cyx.aizerocode.ai.tools.ToolManager;
 import com.cyx.aizerocode.exception.BusinessException;
