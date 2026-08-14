@@ -6,7 +6,6 @@ import cn.hutool.json.JSONUtil;
 import com.cyx.aizerocode.ai.model.message.*;
 import com.cyx.aizerocode.ai.tools.BaseTool;
 import com.cyx.aizerocode.ai.tools.ToolManager;
-import com.cyx.aizerocode.constant.AppConstant;
 import com.cyx.aizerocode.core.builder.VueProjectBuilder;
 import com.cyx.aizerocode.model.entity.User;
 import com.cyx.aizerocode.model.enums.ChatHistoryMessageTypeEnum;
@@ -56,12 +55,13 @@ public class JsonMessageStreamHandler {
                 })
                 .filter(StrUtil::isNotEmpty) // 过滤空字串
                 .doOnComplete(() -> {
-                    // 流式响应完成后，添加 AI 消息到对话历史
+                    // 流式响应完成后，仅添加 AI 消息到对话历史，后续同步打包交给门面类
                     String aiResponse = chatHistoryStringBuilder.toString();
                     chatHistoryService.addChatMessage(appId, aiResponse, ChatHistoryMessageTypeEnum.AI.getValue(), loginUser.getId());
                     // 异步构造 Vue 项目
-                    String projectPath = AppConstant.CODE_OUTPUT_ROOT_DIR + "/vue_project_" + appId;
-                    vueProjectBuilder.buildProjectAsync(projectPath);
+//                    String projectPath = AppConstant.CODE_OUTPUT_ROOT_DIR + "/vue_project_" + appId;
+//                    vueProjectBuilder.buildProjectAsync(projectPath);
+
                 })
                 .doOnError(error -> {
                     // 如果AI回复失败，也要记录错误消息
