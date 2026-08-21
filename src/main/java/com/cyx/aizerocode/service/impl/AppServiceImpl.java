@@ -22,6 +22,8 @@ import com.cyx.aizerocode.model.entity.User;
 import com.cyx.aizerocode.model.enums.ChatHistoryMessageTypeEnum;
 import com.cyx.aizerocode.model.vo.AppVO;
 import com.cyx.aizerocode.model.vo.UserVO;
+import com.cyx.aizerocode.monitor.MonitorContext;
+import com.cyx.aizerocode.monitor.MonitorContextHolder;
 import com.cyx.aizerocode.service.AppService;
 import com.cyx.aizerocode.service.ChatHistoryService;
 import com.cyx.aizerocode.service.ScreenshotService;
@@ -181,12 +183,22 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
         // 保存消息到数据库
         chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), app.getUserId());
+        // 6. 设置监控上下文
+        MonitorContextHolder.setContext(
+                MonitorContext.builder()
+                        .userId(LoginUser.getId().toString())
+                        .appId(appId.toString())
+                        .build()
+        );
         //调用门面类获取 AI 输出结果
         Flux<String> contentFlux = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, enumByValue, appId);
 
-        // 7. 收集 AI 响应内容并在完成后记录到对话历史
-        return streamHandlerExecutor.doExecute(contentFlux, chatHistoryService, appId, LoginUser, enumByValue);
-
+        //收集 AI 响应内容并在完成后记录到对话历史
+        return streamHandlerExecutor.doExecute(contentFlux, chatHistoryService, appId, LoginUser, enumByValue)
+                .doFinally(signalType -> {
+                    // 流结束时清理（无论成功/失败/取消）
+                    MonitorContextHolder.clearContext();
+                });
     }
 
     @Override
