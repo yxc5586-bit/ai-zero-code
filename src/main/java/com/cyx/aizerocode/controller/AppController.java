@@ -8,6 +8,7 @@ import com.cyx.aizerocode.annotation.AuthCheck;
 import com.cyx.aizerocode.common.BaseResponse;
 import com.cyx.aizerocode.common.DeleteRequest;
 import com.cyx.aizerocode.common.ResultUtils;
+import com.cyx.aizerocode.config.ZeroCodeProperties;
 import com.cyx.aizerocode.constant.AppConstant;
 import com.cyx.aizerocode.constant.UserConstant;
 import com.cyx.aizerocode.exception.BusinessException;
@@ -60,6 +61,9 @@ public class AppController {
 
     @Resource
     private ProjectDownloadService projectDownloadService;
+
+    @Resource
+    private ZeroCodeProperties zeroCodeProperties;
 
     /**
      * 创建应用
@@ -370,7 +374,7 @@ public class AppController {
         // 4. 构建应用代码目录路径（生成目录，非部署目录）
         String codeGenType = app.getCodeGenType();
         String sourceDirName = codeGenType + "_" + appId;
-        String sourceDirPath = AppConstant.CODE_OUTPUT_ROOT_DIR + File.separator + sourceDirName;
+        String sourceDirPath = zeroCodeProperties.getCode().getOutputRoot() + File.separator + sourceDirName;
         // 5. 检查代码目录是否存在
         File sourceDir = new File(sourceDirPath);
         ThrowUtils.throwIf(!sourceDir.exists() || !sourceDir.isDirectory(),

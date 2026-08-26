@@ -2,6 +2,7 @@ package com.cyx.aizerocode.service.impl;
 
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.StrUtil;
+import com.cyx.aizerocode.config.ZeroCodeProperties;
 import com.cyx.aizerocode.exception.ErrorCode;
 import com.cyx.aizerocode.exception.ThrowUtils;
 import com.cyx.aizerocode.manager.CosManager;
@@ -23,9 +24,16 @@ public class ScreenshotServiceImpl implements ScreenshotService {
     @Resource
     private CosManager cosManager;
 
+    @Resource
+    private ZeroCodeProperties zeroCodeProperties;
+
     @Override
     public String generateAndUploadScreenshot(String webUrl) {
         ThrowUtils.throwIf(StrUtil.isBlank(webUrl), ErrorCode.PARAMS_ERROR, "网页URL不能为空");
+        if (!zeroCodeProperties.getScreenshot().isEnabled()) {
+            log.info("网页截图已关闭，跳过截图生成，URL: {}", webUrl);
+            return null;
+        }
         log.info("开始生成网页截图，URL: {}", webUrl);
         // 1. 生成本地截图
         String localScreenshotPath = WebScreenshotUtils.saveWebPageScreenshot(webUrl);

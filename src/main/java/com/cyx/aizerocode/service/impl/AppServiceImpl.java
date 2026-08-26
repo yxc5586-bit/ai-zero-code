@@ -7,6 +7,7 @@ import cn.hutool.core.util.StrUtil;
 import com.cyx.aizerocode.ai.AiCodeGenTypeRoutingService;
 import com.cyx.aizerocode.ai.AiCodeGenTypeRoutingServiceFactory;
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
+import com.cyx.aizerocode.config.ZeroCodeProperties;
 import com.cyx.aizerocode.constant.AppConstant;
 import com.cyx.aizerocode.core.AiCodeGeneratorFacade;
 import com.cyx.aizerocode.core.builder.VueProjectBuilder;
@@ -79,6 +80,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private AiCodeGenTypeRoutingServiceFactory aiCodeGenTypeRoutingServiceFactory;
+
+    @Resource
+    private ZeroCodeProperties zeroCodeProperties;
 
     @Override
     public QueryWrapper getQueryWrapper(AppQueryRequest appQueryRequest) {
@@ -224,7 +228,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 获取代码类型和生成路径
         String codeGenTypeEnum = app.getCodeGenType();
         String sourceDirName = codeGenTypeEnum + "_" + app.getId();
-        String sourceDirPath = AppConstant.CODE_OUTPUT_ROOT_DIR + File.separator + sourceDirName;
+        String sourceDirPath = zeroCodeProperties.getCode().getOutputRoot() + File.separator + sourceDirName;
 
         // 检查路径是否存在
         File sourceDir = new File(sourceDirPath);
@@ -248,7 +252,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
 
         //  复制文件到部署目录
-        String deployDirPath = AppConstant.CODE_DEPLOY_ROOT_DIR + File.separator + deployKey;
+        String deployDirPath = zeroCodeProperties.getCode().getDeployRoot() + File.separator + deployKey;
         try {
             FileUtil.copyContent(sourceDir, new File(deployDirPath), true);
         } catch (Exception e) {
@@ -262,7 +266,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         boolean updateResult = this.updateById(updateApp);
         ThrowUtils.throwIf(!updateResult, ErrorCode.OPERATION_ERROR, "更新应用部署信息失败");
         //  构建应用访问 URL
-        String appDeployUrl = String.format("%s/%s/", AppConstant.CODE_DEPLOY_HOST, deployKey);
+        String appDeployUrl = String.format("%s/%s/", zeroCodeProperties.getCode().getPublicBaseUrl(), deployKey);
         //  异步生成截图并更新应用封面
         generateAppScreenshotAsync(appId, appDeployUrl);
         return appDeployUrl;

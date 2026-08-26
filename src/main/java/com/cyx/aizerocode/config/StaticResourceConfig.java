@@ -1,6 +1,5 @@
 package com.cyx.aizerocode.config;
 
-import com.cyx.aizerocode.constant.AppConstant;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
@@ -14,10 +13,16 @@ import java.nio.file.Paths;
 @Configuration
 public class StaticResourceConfig implements WebMvcConfigurer {
 
+    private final ZeroCodeProperties zeroCodeProperties;
+
+    public StaticResourceConfig(ZeroCodeProperties zeroCodeProperties) {
+        this.zeroCodeProperties = zeroCodeProperties;
+    }
+
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/static/**")
-                .addResourceLocations(toDirectoryLocation(AppConstant.CODE_OUTPUT_ROOT_DIR))
+                .addResourceLocations(toDirectoryLocation(zeroCodeProperties.getCode().getOutputRoot()))
                 .setCacheControl(CacheControl.noStore());
     }
 

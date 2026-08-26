@@ -99,7 +99,7 @@ src/main/resources/application-local.yml
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/zerocode
+    url: jdbc:mysql://localhost:3306/zero_code?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: your_mysql_password
   data:
@@ -107,6 +107,10 @@ spring:
       host: localhost
       port: 6379
       password:
+      database: 0
+  session:
+    redis:
+      namespace: zerocode:session
 
 langchain4j:
   open-ai:
@@ -141,6 +145,18 @@ pexels:
 dashscope:
   api-key: your_dashscope_api_key
   image-model: wan2.2-t2i-flash
+
+zerocode:
+  code:
+    output-root: /opt/resume-demo/zero-code/tmp/code_output
+    deploy-root: /opt/resume-demo/zero-code/tmp/code_deploy
+    public-base-url: http://PUBLIC_IP:8080/deploy
+  screenshot:
+    temp-root: /opt/resume-demo/zero-code/tmp/screenshots
+    chrome-binary-path: /usr/bin/chromium-browser
+    chrome-driver-path: /usr/bin/chromedriver
+  generation:
+    global-concurrency: 1
 ```
 
 3. 启动 Redis。
@@ -166,7 +182,7 @@ http://localhost:8123/api
 健康检查：
 
 ```text
-http://localhost:8123/api/health/
+http://localhost:8123/api/actuator/health
 ```
 
 接口文档：
@@ -200,6 +216,13 @@ cp .env.example .env
 ```env
 VITE_API_BASE_URL=/api
 VITE_DEPLOY_DOMAIN=http://localhost
+```
+
+公网 IP 阶段部署 ZeroCode 前端时可设置：
+
+```env
+VITE_API_BASE_URL=/api
+VITE_DEPLOY_DOMAIN=http://PUBLIC_IP:8080/deploy
 ```
 
 启动前端：

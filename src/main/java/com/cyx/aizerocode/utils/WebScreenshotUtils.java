@@ -5,8 +5,11 @@ import cn.hutool.core.img.ImgUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.cyx.aizerocode.config.ZeroCodeProperties;
+import com.cyx.aizerocode.constant.AppConstant;
 import com.cyx.aizerocode.exception.BusinessException;
 import com.cyx.aizerocode.exception.ErrorCode;
+import com.cyx.aizerocode.langgraph4j.tools.SpringContextUtil;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -52,10 +55,19 @@ public class WebScreenshotUtils {
      */
     private static WebDriver initChromeDriver(int width, int height) {
         try {
-            // 自动管理 ChromeDriver
-            WebDriverManager.chromedriver().setup();
+            String chromeDriverPath = getChromeDriverPath();
+            if (StrUtil.isNotBlank(chromeDriverPath)) {
+                System.setProperty("webdriver.chrome.driver", chromeDriverPath);
+            } else {
+                // 自动管理 ChromeDriver
+                WebDriverManager.chromedriver().setup();
+            }
             // 配置 Chrome 选项
             ChromeOptions options = new ChromeOptions();
+            String chromeBinaryPath = getChromeBinaryPath();
+            if (StrUtil.isNotBlank(chromeBinaryPath)) {
+                options.setBinary(chromeBinaryPath);
+            }
             // 无头模式
             options.addArguments("--headless");
             // 禁用GPU（在某些环境下避免问题）
@@ -91,7 +103,7 @@ public class WebScreenshotUtils {
         }
         try {
             // 创建临时目录
-            String rootPath = System.getProperty("user.dir") + File.separator + "tmp" + File.separator + "screenshots"
+            String rootPath = getScreenshotTempRoot()
                     + File.separator + UUID.randomUUID().toString().substring(0, 8);
             FileUtil.mkdir(rootPath);
             // 图片后缀
@@ -171,6 +183,30 @@ public class WebScreenshotUtils {
             log.info("页面加载完成");
         } catch (Exception e) {
             log.error("等待页面加载时出现异常，继续执行截图", e);
+        }
+    }
+
+    private static String getScreenshotTempRoot() {
+        try {
+            return SpringContextUtil.getBean(ZeroCodeProperties.class).getScreenshot().getTempRoot();
+        } catch (Exception ignored) {
+            return AppConstant.SCREENSHOT_TEMP_ROOT_DIR;
+        }
+    }
+
+    private static String getChromeBinaryPath() {
+        try {
+            return SpringContextUtil.getBean(ZeroCodeProperties.class).getScreenshot().getChromeBinaryPath();
+        } catch (Exception ignored) {
+            return AppConstant.CHROME_BINARY_PATH;
+        }
+    }
+
+    private static String getChromeDriverPath() {
+        try {
+            return SpringContextUtil.getBean(ZeroCodeProperties.class).getScreenshot().getChromeDriverPath();
+        } catch (Exception ignored) {
+            return AppConstant.CHROME_DRIVER_PATH;
         }
     }
 

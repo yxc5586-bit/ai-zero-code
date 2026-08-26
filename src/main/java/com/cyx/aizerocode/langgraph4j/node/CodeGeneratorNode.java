@@ -1,6 +1,6 @@
 package com.cyx.aizerocode.langgraph4j.node;
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
-import com.cyx.aizerocode.constant.AppConstant;
+import com.cyx.aizerocode.config.ZeroCodeProperties;
 import com.cyx.aizerocode.core.AiCodeGeneratorFacade;
 import com.cyx.aizerocode.langgraph4j.model.QualityResult;
 import com.cyx.aizerocode.langgraph4j.state.WorkflowContext;
@@ -39,7 +39,9 @@ public class CodeGeneratorNode {
             // 同步等待流式输出完成
             codeStream.blockLast(Duration.ofMinutes(10)); // 最多等待 10 分钟
             // 根据类型设置生成目录
-            String generatedCodeDir = String.format("%s/%s_%s", AppConstant.CODE_OUTPUT_ROOT_DIR, generationType.getValue(), appId);
+            ZeroCodeProperties zeroCodeProperties = SpringContextUtil.getBean(ZeroCodeProperties.class);
+            String generatedCodeDir = String.format("%s/%s_%s",
+                    zeroCodeProperties.getCode().getOutputRoot(), generationType.getValue(), appId);
             log.info("AI 代码生成完成，生成目录: {}", generatedCodeDir);
 
             // 更新状态

@@ -1,7 +1,9 @@
 package com.cyx.aizerocode.ai.tools;
 
 import cn.hutool.core.util.StrUtil;
+import com.cyx.aizerocode.config.ZeroCodeProperties;
 import com.cyx.aizerocode.constant.AppConstant;
+import com.cyx.aizerocode.langgraph4j.tools.SpringContextUtil;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -98,9 +100,17 @@ final class ProjectFileSecurityUtil {
         if (appId == null || appId <= 0) {
             throw new IllegalArgumentException("应用 ID 无效");
         }
-        return Paths.get(AppConstant.CODE_OUTPUT_ROOT_DIR, "vue_project_" + appId)
+        return Paths.get(getCodeOutputRoot(), "vue_project_" + appId)
                 .toAbsolutePath()
                 .normalize();
+    }
+
+    private static String getCodeOutputRoot() {
+        try {
+            return SpringContextUtil.getBean(ZeroCodeProperties.class).getCode().getOutputRoot();
+        } catch (Exception ignored) {
+            return AppConstant.CODE_OUTPUT_ROOT_DIR;
+        }
     }
 
     private static ResolvedPath resolve(String relativePath, Long appId) {

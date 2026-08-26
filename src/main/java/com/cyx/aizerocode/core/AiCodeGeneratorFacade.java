@@ -9,7 +9,7 @@ import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
 import com.cyx.aizerocode.ai.model.message.AiResponseMessage;
 import com.cyx.aizerocode.ai.model.message.ToolExecutedMessage;
 import com.cyx.aizerocode.ai.model.message.ToolRequestMessage;
-import com.cyx.aizerocode.constant.AppConstant;
+import com.cyx.aizerocode.config.ZeroCodeProperties;
 import com.cyx.aizerocode.core.builder.VueProjectBuilder;
 import com.cyx.aizerocode.core.parser.CodeParserExecutor;
 import com.cyx.aizerocode.core.saver.CodeFileSaverExecutor;
@@ -38,6 +38,9 @@ public class AiCodeGeneratorFacade {
     @Resource
     private VueProjectBuilder vueProjectBuilder;
 
+    @Resource
+    private ZeroCodeProperties zeroCodeProperties;
+
 
     /**
      * 统一入口： 根据用户输入的消息，生成代码并保存
@@ -56,11 +59,13 @@ public class AiCodeGeneratorFacade {
         return switch (codeGenTypeEnum) {
             case HTML -> {
                 HtmlCodeResult result = aiCodeGeneratorService.generateHtmlCode(userMessage);
-                yield CodeFileSaverExecutor.executorSaver(result, CodeGenTypeEnum.HTML, appId);
+                yield CodeFileSaverExecutor.executorSaver(result, CodeGenTypeEnum.HTML, appId,
+                        zeroCodeProperties.getCode().getOutputRoot());
             }
             case MULTI_FILE -> {
                 MultiFileCodeResult result = aiCodeGeneratorService.generateMultiFileCode(userMessage);
-                yield CodeFileSaverExecutor.executorSaver(result, CodeGenTypeEnum.MULTI_FILE, appId);
+                yield CodeFileSaverExecutor.executorSaver(result, CodeGenTypeEnum.MULTI_FILE, appId,
+                        zeroCodeProperties.getCode().getOutputRoot());
             }
 
             default -> {
@@ -123,7 +128,8 @@ public class AiCodeGeneratorFacade {
                 // 使用执行器解析代码
                 Object parsedResult = CodeParserExecutor.parseCode(completeCode, codeGenType);
                 // 使用执行器保存代码
-                File savedDir = CodeFileSaverExecutor.executorSaver(parsedResult, codeGenType, appId);
+                File savedDir = CodeFileSaverExecutor.executorSaver(parsedResult, codeGenType, appId,
+                        zeroCodeProperties.getCode().getOutputRoot());
                 log.info("保存成功，路径为：" + savedDir.getAbsolutePath());
             } catch (Exception e) {
                 log.error("保存失败: {}", e.getMessage());
@@ -158,7 +164,7 @@ public class AiCodeGeneratorFacade {
                     })
                     .onCompleteResponse((ChatResponse response) -> {
                         // 执行 Vue 项目构建（同步执行，确保预览时项目已就绪）
-                        String projectPath = AppConstant.CODE_OUTPUT_ROOT_DIR + File.separator + "vue_project_" + appId;
+                        String projectPath = zeroCodeProperties.getCode().getOutputRoot() + File.separator + "vue_project_" + appId;
                         vueProjectBuilder.buildProject(projectPath);
                         sink.complete();
                     })

@@ -1,7 +1,7 @@
 
-create database if not exists zerocode;
+create database if not exists zero_code;
 
-use zerocode;
+use zero_code;
 
 -- 用户表
 create table if not exists user

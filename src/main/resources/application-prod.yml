@@ -1,0 +1,48 @@
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8124}
+  servlet:
+    session:
+      cookie:
+        secure: ${SESSION_COOKIE_SECURE:false}
+        same-site: ${SESSION_COOKIE_SAME_SITE:lax}
+
+spring:
+  data:
+    redis:
+      database: ${REDIS_DATABASE:0}
+  session:
+    redis:
+      namespace: ${SPRING_SESSION_REDIS_NAMESPACE:zerocode:session}
+
+zerocode:
+  code:
+    output-root: ${CODE_OUTPUT_ROOT:/opt/resume-demo/zero-code/tmp/code_output}
+    deploy-root: ${CODE_DEPLOY_ROOT:/opt/resume-demo/zero-code/tmp/code_deploy}
+    public-base-url: ${PUBLIC_BASE_URL:http://PUBLIC_IP:8080/deploy}
+  screenshot:
+    temp-root: ${SCREENSHOT_TEMP_ROOT:/opt/resume-demo/zero-code/tmp/screenshots}
+    chrome-binary-path: ${CHROME_BINARY_PATH:/usr/bin/chromium-browser}
+    chrome-driver-path: ${CHROME_DRIVER_PATH:/usr/bin/chromedriver}
+  generation:
+    global-concurrency: ${GENERATION_GLOBAL_CONCURRENCY:1}
+
+langchain4j:
+  open-ai:
+    chat-model:
+      log-requests: ${AI_LOG_REQUESTS:false}
+      log-responses: ${AI_LOG_RESPONSES:false}
+    streaming-chat-model:
+      log-requests: ${AI_LOG_REQUESTS:false}
+      log-responses: ${AI_LOG_RESPONSES:false}
+    reasoning-streaming-chat-model:
+      log-requests: ${AI_LOG_REQUESTS:false}
+      log-responses: ${AI_LOG_RESPONSES:false}
+    routing-chat-model:
+      log-requests: ${AI_LOG_REQUESTS:false}
+      log-responses: ${AI_LOG_RESPONSES:false}
+
+management:
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_HEALTH_SHOW_DETAILS:never}
