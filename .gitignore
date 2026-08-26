@@ -1,7 +1,23 @@
 ### CUSTOM ###
 application-local.yml
-tmp
-test
+application-*.local.yml
+.env
+.env.*
+!.env.example
+tmp/
+test/
+logs/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Local generated OpenAPI temp files
+openapi2ts.config.ts.*.cjs
+
+# OS files
+.DS_Store
+Thumbs.db
 
 HELP.md
 target/
