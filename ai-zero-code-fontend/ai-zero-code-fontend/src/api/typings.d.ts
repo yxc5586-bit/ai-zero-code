@@ -1,17 +1,19 @@
 declare namespace API {
+  type Id = number | string
+
   type AppAddRequest = {
     initPrompt?: string
   }
 
   type AppAdminUpdateRequest = {
-    id?: number
+    id?: Id
     appName?: string
     cover?: string
     priority?: number
   }
 
   type AppDeployRequest = {
-    appId?: number
+    appId?: Id
   }
 
   type AppQueryRequest = {
@@ -19,18 +21,18 @@ declare namespace API {
     pageSize?: number
     sortField?: string
     sortOrder?: string
-    id?: number
+    id?: Id
     appName?: string
     cover?: string
     initPrompt?: string
     codeGenType?: string
     deployKey?: string
     priority?: number
-    userId?: number
+    userId?: Id
   }
 
   type AppUpdateRequest = {
-    id?: number
+    id?: Id
     appName?: string
   }
 
@@ -48,6 +50,12 @@ declare namespace API {
     createTime?: string
     updateTime?: string
     createUser?: UserVO
+  }
+
+  type BaseResponse<T> = {
+    code?: number
+    data?: T
+    message?: string
   }
 
   type BaseResponseAppVO = {
@@ -126,45 +134,45 @@ declare namespace API {
     pageSize?: number
     sortField?: string
     sortOrder?: string
-    id?: number
+    id?: Id
     message?: string
     messageType?: string
-    appId?: number
-    userId?: number
+    appId?: Id
+    userId?: Id
     lastCreateTime?: string
   }
 
   type chatToGenCodeParams = {
-    appId: number
+    appId: Id
     message: string
   }
 
   type DeleteRequest = {
-    id?: number
+    id?: Id
   }
 
   type downloadAppCodeParams = {
-    appId: number
+    appId: Id
   }
 
   type getAppVOByIdByAdminParams = {
-    id: number
+    id: Id
   }
 
   type getAppVOByIdParams = {
-    id: number
+    id: Id
   }
 
   type getUserByIdParams = {
-    id: number
+    id: Id
   }
 
   type getUserVOByIdParams = {
-    id: number
+    id: Id
   }
 
   type listAppChatHistoryParams = {
-    appId: number
+    appId: Id
     pageSize?: number
     lastCreateTime?: string
   }
@@ -241,7 +249,7 @@ declare namespace API {
     pageSize?: number
     sortField?: string
     sortOrder?: string
-    id?: number
+    id?: Id
     userName?: string
     userAccount?: string
     userProfile?: string
@@ -255,7 +263,7 @@ declare namespace API {
   }
 
   type UserUpdateRequest = {
-    id?: number
+    id?: Id
     userName?: string
     userAvatar?: string
     userProfile?: string
