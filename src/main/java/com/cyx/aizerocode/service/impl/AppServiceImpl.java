@@ -27,6 +27,7 @@ import com.cyx.aizerocode.monitor.MonitorContext;
 import com.cyx.aizerocode.monitor.MonitorContextHolder;
 import com.cyx.aizerocode.service.AppService;
 import com.cyx.aizerocode.service.ChatHistoryService;
+import com.cyx.aizerocode.service.GenerationGuardService;
 import com.cyx.aizerocode.service.ScreenshotService;
 import com.cyx.aizerocode.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -40,6 +41,7 @@ import reactor.core.publisher.Flux;
 import java.io.File;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -83,6 +85,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
 
     @Resource
     private ZeroCodeProperties zeroCodeProperties;
+
+    @Resource
+    private GenerationGuardService generationGuardService;
 
     @Override
     public QueryWrapper getQueryWrapper(AppQueryRequest appQueryRequest) {
@@ -171,6 +176,8 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 参数校验
         ThrowUtils.throwIf(appId == null || appId <= 0, ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(StrUtil.isBlank(message), ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(LoginUser == null || LoginUser.getId() == null, ErrorCode.NOT_LOGIN_ERROR);
+        validatePromptLength(message);
 
         //查询应用信息
         App app = this.getById(appId);
@@ -185,24 +192,38 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         CodeGenTypeEnum enumByValue = CodeGenTypeEnum.getEnumByValue(codeGenType);
         ThrowUtils.throwIf(enumByValue == null, ErrorCode.PARAMS_ERROR, "不支持的代码生成类型");
 
-        // 保存消息到数据库
-        chatHistoryService.addChatMessage(appId, message, ChatHistoryMessageTypeEnum.USER.getValue(), app.getUserId());
-        // 6. 设置监控上下文
-        MonitorContextHolder.setContext(
-                MonitorContext.builder()
-                        .userId(LoginUser.getId().toString())
-                        .appId(appId.toString())
-                        .build()
-        );
-        //调用门面类获取 AI 输出结果
-        Flux<String> contentFlux = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, enumByValue, appId);
-
-        //收集 AI 响应内容并在完成后记录到对话历史
-        return streamHandlerExecutor.doExecute(contentFlux, chatHistoryService, appId, LoginUser, enumByValue)
-                .doFinally(signalType -> {
-                    // 流结束时清理（无论成功/失败/取消）
-                    MonitorContextHolder.clearContext();
-                });
+        return Flux.defer(() -> {
+            GenerationGuardService.GenerationLease lease = generationGuardService.acquire(appId, LoginUser.getId());
+            try {
+                chatHistoryService.addChatMessage(
+                        appId,
+                        message,
+                        ChatHistoryMessageTypeEnum.USER.getValue(),
+                        app.getUserId()
+                );
+                MonitorContextHolder.setContext(
+                        MonitorContext.builder()
+                                .userId(LoginUser.getId().toString())
+                                .appId(appId.toString())
+                                .build()
+                );
+                Flux<String> contentFlux = aiCodeGeneratorFacade.generateAndSaveCodeStream(message, enumByValue, appId);
+                return streamHandlerExecutor.doExecute(contentFlux, chatHistoryService, appId, LoginUser, enumByValue)
+                        .timeout(zeroCodeProperties.getGeneration().getTimeout())
+                        .onErrorMap(TimeoutException.class, e -> new BusinessException(
+                                ErrorCode.OPERATION_ERROR,
+                                "生成超时，请稍后重试"
+                        ))
+                        .doFinally(signalType -> {
+                            generationGuardService.release(lease);
+                            MonitorContextHolder.clearContext();
+                        });
+            } catch (RuntimeException e) {
+                generationGuardService.release(lease);
+                MonitorContextHolder.clearContext();
+                return Flux.error(e);
+            }
+        });
     }
 
     @Override
@@ -293,6 +314,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         // 校验非空
         String initPrompt = appAddRequest.getInitPrompt();
         ThrowUtils.throwIf(StrUtil.isBlank(initPrompt), ErrorCode.PARAMS_ERROR, "应用初始化 prompt 不能为空");
+        validatePromptLength(initPrompt);
         // 构建app对象并设置应用信息
         App app = new App();
         app.setInitPrompt(initPrompt);
@@ -307,6 +329,15 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         boolean result = this.save(app);
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR, "创建应用失败");
         return app.getId();
+    }
+
+    private void validatePromptLength(String prompt) {
+        int maxPromptLength = zeroCodeProperties.getGeneration().getMaxPromptLength();
+        ThrowUtils.throwIf(
+                prompt.length() > maxPromptLength,
+                ErrorCode.PARAMS_ERROR,
+                "提示词长度不能超过 " + maxPromptLength + " 个字符"
+        );
     }
 
     /**

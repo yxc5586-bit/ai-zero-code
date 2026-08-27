@@ -316,18 +316,38 @@ public class AppController {
         // 调用服务生成代码
         Flux<String> contentFlux = appService.chatToGenCode(appId, message, loginUser);
 
-        return contentFlux.map(chunk -> {
+        Flux<ServerSentEvent<String>> eventFlux = contentFlux.map(chunk -> {
             Map<String, String> wrapper = Map.of("d",  chunk);
             String jsonStr = JSONUtil.toJsonStr(wrapper);
             return  ServerSentEvent.<String>builder()
                     .data(jsonStr)
                     .build();
-        }).concatWith(Mono.just(
+        }).onErrorResume(throwable -> Mono.just(buildGenerationErrorEvent(throwable)));
+
+        return eventFlux.concatWith(Mono.just(
                 ServerSentEvent.<String>builder()
                         .event("done")
                         .data("")
                         .build()
         ));
+    }
+    // 错误处理方法
+    private ServerSentEvent<String> buildGenerationErrorEvent(Throwable throwable) {
+        int code = ErrorCode.SYSTEM_ERROR.getCode();
+        String message = "生成过程中出现错误";
+        if (throwable instanceof BusinessException businessException) {
+            code = businessException.getCode();
+            message = businessException.getMessage();
+        }
+        String errorJson = JSONUtil.toJsonStr(Map.of(
+                "error", true,
+                "code", code,
+                "message", message
+        ));
+        return ServerSentEvent.<String>builder()
+                .event("business-error")
+                .data(errorJson)
+                .build();
     }
     /**
      * 应用部署

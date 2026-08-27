@@ -4,6 +4,8 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+
 /**
  * ZeroCode 单机演示运行配置。
  */
@@ -50,6 +52,16 @@ public class ZeroCodeProperties {
     @Data
     public static class Generation {
 
-        private int globalConcurrency = 2;
+        private boolean demoMode = true;
+
+        private int globalConcurrency = 1;
+
+        private int dailyQuota = 10;
+
+        private int maxPromptLength = 2000;
+
+        private Duration leaseTtl = Duration.ofMinutes(10);
+
+        private Duration timeout = Duration.ofMinutes(10);
     }
 }
