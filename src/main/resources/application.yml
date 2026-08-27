@@ -110,7 +110,12 @@ zerocode:
     chrome-binary-path: ${CHROME_BINARY_PATH:}
     chrome-driver-path: ${CHROME_DRIVER_PATH:}
   generation:
+    demo-mode: ${GENERATION_DEMO_MODE:true}
     global-concurrency: ${GENERATION_GLOBAL_CONCURRENCY:1}
+    daily-quota: ${GENERATION_DAILY_QUOTA:10}
+    max-prompt-length: ${GENERATION_MAX_PROMPT_LENGTH:2000}
+    lease-ttl: ${GENERATION_LEASE_TTL:10m}
+    timeout: ${GENERATION_TIMEOUT:10m}
 
 # Actuator 管理端配置
 management:
