@@ -1,0 +1,10 @@
+/opt/resume-demo/zero-code/logs/*.log {
+    daily
+    rotate 7
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    su zerocode zerocode
+}

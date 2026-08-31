@@ -109,6 +109,9 @@ zerocode:
     temp-root: ${SCREENSHOT_TEMP_ROOT:${user.dir}/tmp/screenshots}
     chrome-binary-path: ${CHROME_BINARY_PATH:}
     chrome-driver-path: ${CHROME_DRIVER_PATH:}
+  build:
+    npm-executable: ${NPM_EXECUTABLE:npm}
+    npm-cache-root: ${NPM_CACHE_ROOT:${user.dir}/tmp/npm-cache}
   generation:
     demo-mode: ${GENERATION_DEMO_MODE:true}
     global-concurrency: ${GENERATION_GLOBAL_CONCURRENCY:1}

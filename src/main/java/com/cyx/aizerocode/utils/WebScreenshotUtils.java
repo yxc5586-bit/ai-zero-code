@@ -11,7 +11,6 @@ import com.cyx.aizerocode.exception.BusinessException;
 import com.cyx.aizerocode.exception.ErrorCode;
 import com.cyx.aizerocode.langgraph4j.tools.SpringContextUtil;
 import io.github.bonigarcia.wdm.WebDriverManager;
-import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
@@ -34,21 +33,6 @@ import java.util.UUID;
 
 @Slf4j
 public class WebScreenshotUtils {
-
-    //WebDriver 初始化
-    private static final WebDriver webDriver;
-
-    static{
-        final int DEFAULT_WIDTH = 1600;
-        final int DEFAULT_HEIGHT = 900;
-        webDriver = initChromeDriver(DEFAULT_WIDTH, DEFAULT_HEIGHT);
-    }
-
-    //在项目停止前销毁 WebDriver
-    @PreDestroy
-    public void destroy() {
-        webDriver.quit();
-    }
 
     /**
      * 初始化 Chrome 浏览器驱动
@@ -95,13 +79,21 @@ public class WebScreenshotUtils {
         }
     }
 
-    public static String saveWebPageScreenshot(String webUrl){
+    public static synchronized String saveWebPageScreenshot(String webUrl){
         //非空校验
         if (StrUtil.isBlank(webUrl)) {
             log.error("保存网页截图参数为空");
             return null;
         }
+        if (!isScreenshotEnabled()) {
+            log.info("网页截图已关闭，跳过截图生成，URL: {}", webUrl);
+            return null;
+        }
+        WebDriver webDriver = null;
         try {
+            final int defaultWidth = 1600;
+            final int defaultHeight = 900;
+            webDriver = initChromeDriver(defaultWidth, defaultHeight);
             // 创建临时目录
             String rootPath = getScreenshotTempRoot()
                     + File.separator + UUID.randomUUID().toString().substring(0, 8);
@@ -130,8 +122,15 @@ public class WebScreenshotUtils {
         } catch (Exception e) {
             log.error("网页截图失败: {}", webUrl, e);
             return null;
+        } finally {
+            if (webDriver != null) {
+                try {
+                    webDriver.quit();
+                } catch (Exception e) {
+                    log.warn("关闭 ChromeDriver 失败", e);
+                }
+            }
         }
-
     }
 
 
@@ -191,6 +190,14 @@ public class WebScreenshotUtils {
             return SpringContextUtil.getBean(ZeroCodeProperties.class).getScreenshot().getTempRoot();
         } catch (Exception ignored) {
             return AppConstant.SCREENSHOT_TEMP_ROOT_DIR;
+        }
+    }
+
+    private static boolean isScreenshotEnabled() {
+        try {
+            return SpringContextUtil.getBean(ZeroCodeProperties.class).getScreenshot().isEnabled();
+        } catch (Exception ignored) {
+            return true;
         }
     }
 

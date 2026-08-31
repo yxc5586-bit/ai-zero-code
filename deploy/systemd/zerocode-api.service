@@ -1,0 +1,30 @@
+[Unit]
+Description=AI ZeroCode API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=zerocode
+Group=zerocode
+WorkingDirectory=/opt/resume-demo/zero-code
+EnvironmentFile=/opt/resume-demo/config/zero-code.env
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -XX:+ExitOnOutOfMemoryError -jar /opt/resume-demo/zero-code/app/ai-zero-code.jar
+ExecStartPost=/opt/resume-demo/zero-code/bin/wait-for-health.sh http://127.0.0.1:8124/api/actuator/health 90
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=30
+SuccessExitStatus=143
+MemoryMax=2G
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/opt/resume-demo/zero-code/logs /opt/resume-demo/zero-code/tmp /opt/resume-demo/zero-code/npm-cache
+LimitNOFILE=65535
+StandardOutput=append:/opt/resume-demo/zero-code/logs/service.log
+StandardError=append:/opt/resume-demo/zero-code/logs/service-error.log
+
+[Install]
+WantedBy=multi-user.target

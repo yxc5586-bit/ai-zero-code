@@ -18,6 +18,8 @@ public class ZeroCodeProperties {
 
     private Screenshot screenshot = new Screenshot();
 
+    private Build build = new Build();
+
     private Generation generation = new Generation();
 
     @Data
@@ -47,6 +49,14 @@ public class ZeroCodeProperties {
         private String chromeBinaryPath = "";
 
         private String chromeDriverPath = "";
+    }
+
+    @Data
+    public static class Build {
+
+        private String npmExecutable = "npm";
+
+        private String npmCacheRoot = System.getProperty("user.dir") + "/tmp/npm-cache";
     }
 
     @Data

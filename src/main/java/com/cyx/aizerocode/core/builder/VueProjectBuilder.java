@@ -1,16 +1,25 @@
 package com.cyx.aizerocode.core.builder;
 
-import cn.hutool.core.util.RuntimeUtil;
+import cn.hutool.core.io.FileUtil;
+import com.cyx.aizerocode.config.ZeroCodeProperties;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class VueProjectBuilder {
 
+    private final ZeroCodeProperties zeroCodeProperties;
 
     /**
      * 异步构建项目（不阻塞主流程）
@@ -60,8 +69,14 @@ public class VueProjectBuilder {
         }
         // 验证 dist 目录是否生成
         File distDir = new File(projectDir, "dist");
-        if (!distDir.exists()) {
+        File indexFile = new File(distDir, "index.html");
+        if (!distDir.isDirectory() || !indexFile.isFile()) {
             log.error("构建完成但 dist 目录未生成: {}", distDir.getAbsolutePath());
+            return false;
+        }
+        File nodeModulesDir = new File(projectDir, "node_modules");
+        if (nodeModulesDir.exists() && !FileUtil.del(nodeModulesDir)) {
+            log.error("Vue 项目构建成功，但 node_modules 清理失败: {}", nodeModulesDir.getAbsolutePath());
             return false;
         }
         log.info("Vue 项目构建成功，dist 目录: {}", distDir.getAbsolutePath());
@@ -73,25 +88,37 @@ public class VueProjectBuilder {
      * 执行命令
      *
      * @param workingDir     工作目录
-     * @param command        命令字符串
+     * @param command        命令及参数
      * @param timeoutSeconds 超时时间（秒）
      * @return 是否执行成功
      */
-    private boolean executeCommand(File workingDir, String command, int timeoutSeconds) {
+    private boolean executeCommand(File workingDir, List<String> command, int timeoutSeconds) {
         try {
             log.info("在目录 {} 中执行命令: {}", workingDir.getAbsolutePath(), command);
-            Process process = RuntimeUtil.exec(
-                    null,
-                    workingDir,
-                    command.split("\\s+") // 命令分割为数组
-            );
+            Process process = new ProcessBuilder(command)
+                    .directory(workingDir)
+                    .redirectErrorStream(true)
+                    .start();
+            Thread outputReader = Thread.ofVirtual().name("npm-output-reader").start(() -> {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        log.debug("[npm] {}", line);
+                    }
+                } catch (Exception e) {
+                    log.debug("读取 npm 输出结束: {}", e.getMessage());
+                }
+            });
             // 等待进程完成，设置超时
             boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
             if (!finished) {
                 log.error("命令执行超时（{}秒），强制终止进程", timeoutSeconds);
                 process.destroyForcibly();
+                outputReader.join(1000);
                 return false;
             }
+            outputReader.join(1000);
             int exitCode = process.exitValue();
             if (exitCode == 0) {
                 log.info("命令执行成功: {}", command);
@@ -111,7 +138,17 @@ public class VueProjectBuilder {
      */
     private boolean executeNpmInstall(File projectDir) {
         log.info("执行 npm install...");
-        String command = String.format("%s install", buildCommand("npm"));
+        File cacheRoot = new File(zeroCodeProperties.getBuild().getNpmCacheRoot());
+        FileUtil.mkdir(cacheRoot);
+        List<String> command = Arrays.asList(
+                getNpmExecutable(),
+                "install",
+                "--no-audit",
+                "--no-fund",
+                "--prefer-offline",
+                "--cache",
+                cacheRoot.getAbsolutePath()
+        );
         return executeCommand(projectDir, command, 300); // 5分钟超时
     }
 
@@ -120,15 +157,15 @@ public class VueProjectBuilder {
      */
     private boolean executeNpmBuild(File projectDir) {
         log.info("执行 npm run build...");
-        String command = String.format("%s run build", buildCommand("npm"));
-        return executeCommand(projectDir, command, 180); // 3分钟超时
+        return executeCommand(projectDir, List.of(getNpmExecutable(), "run", "build"), 180); // 3分钟超时
     }
 
-    private String buildCommand(String baseCommand) {
-        if (isWindows()) {
-            return baseCommand + ".cmd";
+    private String getNpmExecutable() {
+        String configuredExecutable = zeroCodeProperties.getBuild().getNpmExecutable();
+        if (isWindows() && "npm".equalsIgnoreCase(configuredExecutable)) {
+            return "npm.cmd";
         }
-        return baseCommand;
+        return configuredExecutable;
     }
 
     private boolean isWindows() {

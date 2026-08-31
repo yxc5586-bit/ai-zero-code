@@ -150,11 +150,14 @@ zerocode:
   code:
     output-root: /opt/resume-demo/zero-code/tmp/code_output
     deploy-root: /opt/resume-demo/zero-code/tmp/code_deploy
-    public-base-url: http://PUBLIC_IP:8080/deploy
+    public-base-url: http://PUBLIC_IP:8080
   screenshot:
     temp-root: /opt/resume-demo/zero-code/tmp/screenshots
-    chrome-binary-path: /usr/bin/chromium-browser
-    chrome-driver-path: /usr/bin/chromedriver
+    chrome-binary-path: /usr/bin/google-chrome
+    chrome-driver-path: /usr/local/bin/chromedriver
+  build:
+    npm-executable: /usr/bin/npm
+    npm-cache-root: /opt/resume-demo/zero-code/npm-cache
   generation:
     global-concurrency: 1
 ```

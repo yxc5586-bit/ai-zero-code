@@ -19,11 +19,15 @@ zerocode:
   code:
     output-root: ${CODE_OUTPUT_ROOT:/opt/resume-demo/zero-code/tmp/code_output}
     deploy-root: ${CODE_DEPLOY_ROOT:/opt/resume-demo/zero-code/tmp/code_deploy}
-    public-base-url: ${PUBLIC_BASE_URL:http://PUBLIC_IP:8080/deploy}
+    public-base-url: ${PUBLIC_BASE_URL:http://PUBLIC_IP:8080}
   screenshot:
+    enabled: ${SCREENSHOT_ENABLED:true}
     temp-root: ${SCREENSHOT_TEMP_ROOT:/opt/resume-demo/zero-code/tmp/screenshots}
-    chrome-binary-path: ${CHROME_BINARY_PATH:/usr/bin/chromium-browser}
-    chrome-driver-path: ${CHROME_DRIVER_PATH:/usr/bin/chromedriver}
+    chrome-binary-path: ${CHROME_BINARY_PATH:/usr/bin/google-chrome}
+    chrome-driver-path: ${CHROME_DRIVER_PATH:/usr/local/bin/chromedriver}
+  build:
+    npm-executable: ${NPM_EXECUTABLE:/usr/bin/npm}
+    npm-cache-root: ${NPM_CACHE_ROOT:/opt/resume-demo/zero-code/npm-cache}
   generation:
     demo-mode: ${GENERATION_DEMO_MODE:true}
     global-concurrency: ${GENERATION_GLOBAL_CONCURRENCY:1}

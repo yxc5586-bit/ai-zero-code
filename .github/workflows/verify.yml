@@ -1,0 +1,57 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Verify offline tests and package
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -Dtest=ProjectFileSecurityUtilTest,CodeParserReliabilityTest,GenerationGuardServiceTest,ProductionRuntimePreparationTest clean package
+      - name: Verify executable jar
+        run: test -s target/ai-zero-code.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-zero-code-jar
+          path: target/ai-zero-code.jar
+          retention-days: 7
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-zero-code-fontend/ai-zero-code-fontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ai-zero-code-fontend/ai-zero-code-fontend/package-lock.json
+      - run: npm ci
+      - run: npm run type-check
+      - name: Build frontend
+        env:
+          VITE_API_BASE_URL: /api
+          VITE_DEPLOY_DOMAIN: http://PUBLIC_IP:8080/deploy
+        run: npm run build-only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-zero-code-web
+          path: ai-zero-code-fontend/ai-zero-code-fontend/dist
+          retention-days: 7
