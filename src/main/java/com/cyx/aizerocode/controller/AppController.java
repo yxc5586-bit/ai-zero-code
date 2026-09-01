@@ -322,14 +322,14 @@ public class AppController {
             return  ServerSentEvent.<String>builder()
                     .data(jsonStr)
                     .build();
-        }).onErrorResume(throwable -> Mono.just(buildGenerationErrorEvent(throwable)));
-
-        return eventFlux.concatWith(Mono.just(
+        }).concatWith(Mono.just(
                 ServerSentEvent.<String>builder()
                         .event("done")
                         .data("")
                         .build()
-        ));
+        )).onErrorResume(throwable -> Mono.just(buildGenerationErrorEvent(throwable)));
+
+        return eventFlux;
     }
     // 错误处理方法
     private ServerSentEvent<String> buildGenerationErrorEvent(Throwable throwable) {

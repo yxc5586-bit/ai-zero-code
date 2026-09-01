@@ -45,9 +45,14 @@ public class MultiFileCodeFileSaverTemplate extends CodeFileSaverTemplate<MultiF
     @Override
     protected void validateInput(MultiFileCodeResult result) {
         super.validateInput(result);
-        //至少HTML代码不为空，其他类型代码可以为空
         if (StrUtil.isBlank(result.getHtmlCode())) {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR,"HTML代码不能为空");
+        }
+        if (StrUtil.isBlank(result.getCssCode())) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR,"CSS代码不能为空");
+        }
+        if (StrUtil.isBlank(result.getJsCode())) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR,"JavaScript代码不能为空");
         }
     }
 }

@@ -118,12 +118,9 @@ public class AiCodeGeneratorFacade {
      */
     private Flux<String> processCodeStream(Flux<String> codeStream, CodeGenTypeEnum codeGenType, Long appId) {
         StringBuilder codeBuilder = new StringBuilder();
-        return codeStream.doOnNext(chunk -> {
-            // 实时收集代码片段
-            codeBuilder.append(chunk);
-        }).doOnComplete(() -> {
-            // 流式返回完成后保存代码
-            try {
+        return codeStream
+                .doOnNext(codeBuilder::append)
+                .concatWith(Flux.defer(() -> {
                 String completeCode = codeBuilder.toString();
                 // 使用执行器解析代码
                 Object parsedResult = CodeParserExecutor.parseCode(completeCode, codeGenType);
@@ -131,13 +128,10 @@ public class AiCodeGeneratorFacade {
                 File savedDir = CodeFileSaverExecutor.executorSaver(parsedResult, codeGenType, appId,
                         zeroCodeProperties.getCode().getOutputRoot());
                 log.info("保存成功，路径为：" + savedDir.getAbsolutePath());
-            } catch (Exception e) {
-                log.error("保存失败: {}", e.getMessage());
-            }
-        }).doOnError(e -> {
-                    log.error("AI 流式生成失败，appId={}, codeGenType={}", appId, codeGenType, e);
-                })
-                .onErrorResume(e -> Flux.just("AI 生成过程中连接中断，请稍后重试"));
+                return Flux.empty();
+            }))
+                .doOnError(e -> log.error("AI 流式生成或保存失败，appId={}, codeGenType={}",
+                        appId, codeGenType, e));
     }
 
 

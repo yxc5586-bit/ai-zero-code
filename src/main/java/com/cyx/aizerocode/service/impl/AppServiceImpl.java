@@ -40,12 +40,16 @@ import reactor.core.publisher.Flux;
 
 import java.io.File;
 import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -62,6 +66,11 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
      * 默认应用名称长度
      */
     private static final int DEFAULT_APP_NAME_LENGTH = 12;
+
+    private static final Pattern LOCAL_ASSET_REFERENCE_PATTERN = Pattern.compile(
+            "(?:src|href)\\s*=\\s*([\"'])([^\"']+)\\1",
+            Pattern.CASE_INSENSITIVE
+    );
 
     @Resource
     private UserService userService;
@@ -304,6 +313,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             sourceDir = distDir;
             log.info("Vue 项目构建成功，将部署 dist 目录: {}", distDir.getAbsolutePath());
         }
+        if (codeGenType == CodeGenTypeEnum.MULTI_FILE) {
+            validateMultiFileDeployment(sourceDir);
+        }
 
         //  复制文件到部署目录
         String deployDirPath = zeroCodeProperties.getCode().getDeployRoot() + File.separator + deployKey;
@@ -324,6 +336,47 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         //  异步生成截图并更新应用封面
         generateAppScreenshotAsync(appId, appDeployUrl);
         return appDeployUrl;
+    }
+
+    private void validateMultiFileDeployment(File sourceDir) {
+        for (String fileName : List.of("index.html", "style.css", "script.js")) {
+            File requiredFile = new File(sourceDir, fileName);
+            ThrowUtils.throwIf(
+                    !requiredFile.isFile() || requiredFile.length() == 0,
+                    ErrorCode.OPERATION_ERROR,
+                    "部署资源不完整：" + fileName
+            );
+        }
+        Path sourceRoot = sourceDir.toPath().toAbsolutePath().normalize();
+        Matcher matcher = LOCAL_ASSET_REFERENCE_PATTERN.matcher(
+                FileUtil.readUtf8String(new File(sourceDir, "index.html"))
+        );
+        while (matcher.find()) {
+            String reference = matcher.group(2).trim();
+            String lowerReference = reference.toLowerCase();
+            if (StrUtil.isBlank(reference)
+                    || lowerReference.startsWith("http://")
+                    || lowerReference.startsWith("https://")
+                    || lowerReference.startsWith("//")
+                    || lowerReference.startsWith("data:")
+                    || lowerReference.startsWith("blob:")
+                    || lowerReference.startsWith("mailto:")
+                    || lowerReference.startsWith("tel:")
+                    || lowerReference.startsWith("javascript:")
+                    || lowerReference.startsWith("#")) {
+                continue;
+            }
+            String localPath = reference.split("[?#]", 2)[0];
+            if (localPath.startsWith("/")) {
+                localPath = localPath.substring(1);
+            }
+            Path assetPath = sourceRoot.resolve(localPath).normalize();
+            ThrowUtils.throwIf(
+                    !assetPath.startsWith(sourceRoot) || !Files.isRegularFile(assetPath),
+                    ErrorCode.OPERATION_ERROR,
+                    "部署资源不存在：" + reference
+            );
+        }
     }
 
 

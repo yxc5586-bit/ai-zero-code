@@ -10,6 +10,10 @@ public class MultiFileCodeParser implements CodeParser<MultiFileCodeResult>{
     private static final Pattern HTML_CODE_PATTERN = Pattern.compile("```html\\s*\\n([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
     private static final Pattern CSS_CODE_PATTERN = Pattern.compile("```css\\s*\\n([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
     private static final Pattern JS_CODE_PATTERN = Pattern.compile("```(?:js|javascript)\\s*\\n([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
+    private static final Pattern STYLESHEET_REFERENCE_PATTERN = Pattern.compile(
+            "(href\\s*=\\s*[\"'])(?:\\./)?styles\\.css([\"'])",
+            Pattern.CASE_INSENSITIVE
+    );
 
 
     /**
@@ -24,7 +28,8 @@ public class MultiFileCodeParser implements CodeParser<MultiFileCodeResult>{
         String jsCode = extractCodeByPattern(codeContent, JS_CODE_PATTERN);
         // 设置HTML代码
         if (htmlCode != null && !htmlCode.trim().isEmpty()) {
-            result.setHtmlCode(htmlCode.trim());
+            result.setHtmlCode(STYLESHEET_REFERENCE_PATTERN.matcher(htmlCode.trim())
+                    .replaceAll("$1style.css$2"));
         }
         // 设置CSS代码
         if (cssCode != null && !cssCode.trim().isEmpty()) {

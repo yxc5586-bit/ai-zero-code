@@ -1,14 +1,23 @@
 package com.cyx.aizerocode.service;
 
+import com.cyx.aizerocode.ai.AiCodeGeneratorService;
+import com.cyx.aizerocode.ai.AiCodeGeneratorServiceFactory;
+import com.cyx.aizerocode.ai.model.MultiFileCodeResult;
 import com.cyx.aizerocode.ai.model.enums.CodeGenTypeEnum;
 import com.cyx.aizerocode.config.ZeroCodeProperties;
+import com.cyx.aizerocode.controller.AppController;
+import com.cyx.aizerocode.core.AiCodeGeneratorFacade;
 import com.cyx.aizerocode.core.builder.VueProjectBuilder;
+import com.cyx.aizerocode.core.parser.CodeParserExecutor;
+import com.cyx.aizerocode.core.saver.CodeFileSaverExecutor;
 import com.cyx.aizerocode.exception.BusinessException;
+import com.cyx.aizerocode.exception.ErrorCode;
 import com.cyx.aizerocode.langgraph4j.tools.SpringContextUtil;
 import com.cyx.aizerocode.model.entity.App;
 import com.cyx.aizerocode.model.entity.User;
 import com.cyx.aizerocode.service.impl.AppServiceImpl;
 import com.cyx.aizerocode.utils.WebScreenshotUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +30,10 @@ import org.redisson.api.RScript;
 import org.redisson.api.RedissonClient;
 import org.redisson.client.codec.StringCodec;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.http.codec.ServerSentEvent;
+import reactor.core.publisher.Flux;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -235,6 +247,130 @@ class ProductionRuntimePreparationTest {
 
         assertFalse(script.contains("tmp/code_deploy"));
         assertTrue(script.contains("-mindepth 1 -maxdepth 1"));
+    }
+
+    @Test
+    void multiFileParserNormalizesStylesheetNameAndSaverRequiresAllFiles() throws Exception {
+        String generatedCode = """
+                ```html
+                <link rel="stylesheet" href="./styles.css">
+                <link rel="stylesheet" href="https://cdn.example.com/styles.css">
+                <script src="script.js"></script>
+                ```
+                ```css
+                body { color: #333; }
+                ```
+                ```javascript
+                console.log('ok');
+                ```
+                """;
+        MultiFileCodeResult result = (MultiFileCodeResult) CodeParserExecutor.parseCode(
+                generatedCode,
+                CodeGenTypeEnum.MULTI_FILE
+        );
+
+        assertTrue(result.getHtmlCode().contains("href=\"style.css\""));
+        assertTrue(result.getHtmlCode().contains("https://cdn.example.com/styles.css"));
+        File savedDir = CodeFileSaverExecutor.executorSaver(
+                result,
+                CodeGenTypeEnum.MULTI_FILE,
+                8L,
+                tempDir.toString()
+        );
+        assertTrue(new File(savedDir, "index.html").isFile());
+        assertTrue(new File(savedDir, "style.css").isFile());
+        assertTrue(new File(savedDir, "script.js").isFile());
+
+        result.setCssCode(null);
+        assertThrows(BusinessException.class, () -> CodeFileSaverExecutor.executorSaver(
+                result, CodeGenTypeEnum.MULTI_FILE, 9L, tempDir.toString()
+        ));
+        result.setCssCode("body{}");
+        result.setJsCode(null);
+        assertThrows(BusinessException.class, () -> CodeFileSaverExecutor.executorSaver(
+                result, CodeGenTypeEnum.MULTI_FILE, 10L, tempDir.toString()
+        ));
+    }
+
+    @Test
+    void streamingSaveFailurePropagatesToSubscriber() {
+        AiCodeGeneratorServiceFactory factory = mock(AiCodeGeneratorServiceFactory.class);
+        AiCodeGeneratorService aiService = mock(AiCodeGeneratorService.class);
+        when(factory.getAiCodeGeneratorService(7L, CodeGenTypeEnum.MULTI_FILE)).thenReturn(aiService);
+        when(aiService.generateMultiFileCodeStream("prompt")).thenReturn(Flux.just("""
+                ```html
+                <link rel="stylesheet" href="style.css"><script src="script.js"></script>
+                ```
+                ```javascript
+                console.log('missing css');
+                ```
+                """));
+        ZeroCodeProperties properties = new ZeroCodeProperties();
+        properties.getCode().setOutputRoot(tempDir.toString());
+        AiCodeGeneratorFacade facade = new AiCodeGeneratorFacade();
+        ReflectionTestUtils.setField(facade, "aiCodeGeneratorServiceFactory", factory);
+        ReflectionTestUtils.setField(facade, "zeroCodeProperties", properties);
+
+        assertThrows(BusinessException.class, () -> facade.generateAndSaveCodeStream(
+                "prompt", CodeGenTypeEnum.MULTI_FILE, 7L
+        ).collectList().block());
+    }
+
+    @Test
+    void generationErrorReturnsBusinessErrorWithoutDoneEvent() {
+        AppService appService = mock(AppService.class);
+        UserService userService = mock(UserService.class);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        User user = new User();
+        user.setId(2L);
+        when(userService.getLoginUser(request)).thenReturn(user);
+        when(appService.chatToGenCode(1L, "prompt", user)).thenReturn(
+                Flux.error(new BusinessException(ErrorCode.OPERATION_ERROR, "保存失败"))
+        );
+        AppController controller = new AppController();
+        ReflectionTestUtils.setField(controller, "appService", appService);
+        ReflectionTestUtils.setField(controller, "userService", userService);
+
+        List<ServerSentEvent<String>> events = controller.chatToGenCode(1L, "prompt", request)
+                .collectList()
+                .block();
+
+        assertEquals(1, events.size());
+        assertEquals("business-error", events.getFirst().event());
+    }
+
+    @Test
+    void multiFileDeploymentRejectsMissingLocalAsset() throws Exception {
+        Path outputRoot = tempDir.resolve("output");
+        Path sourceDir = outputRoot.resolve("multi_file_3");
+        Files.createDirectories(sourceDir);
+        Files.writeString(sourceDir.resolve("style.css"), "body{}");
+        Files.writeString(sourceDir.resolve("script.js"), "console.log('ok')");
+        Files.writeString(sourceDir.resolve("index.html"),
+                "<link href=\"style.css\"><script src=\"missing.js\"></script>");
+        ZeroCodeProperties properties = new ZeroCodeProperties();
+        properties.getCode().setOutputRoot(outputRoot.toString());
+        properties.getCode().setDeployRoot(tempDir.resolve("deploy").toString());
+        properties.getCode().setPublicBaseUrl("http://host:8080");
+        App app = App.builder()
+                .id(3L)
+                .userId(2L)
+                .codeGenType(CodeGenTypeEnum.MULTI_FILE.getValue())
+                .deployKey("multi3")
+                .build();
+        User user = new User();
+        user.setId(2L);
+        AppServiceImpl service = spy(new AppServiceImpl());
+        ReflectionTestUtils.setField(service, "zeroCodeProperties", properties);
+        doReturn(app).when(service).getById(3L);
+
+        assertThrows(BusinessException.class, () -> service.deployApp(3L, user));
+
+        Files.writeString(sourceDir.resolve("index.html"),
+                "<link href=\"style.css\"><script src=\"script.js\"></script>");
+        doReturn(true).when(service).updateById(any(App.class));
+        doNothing().when(service).generateAppScreenshotAsync(3L, "http://host:8080/deploy/multi3/");
+        assertEquals("http://host:8080/deploy/multi3/", service.deployApp(3L, user));
     }
 
     @Test
