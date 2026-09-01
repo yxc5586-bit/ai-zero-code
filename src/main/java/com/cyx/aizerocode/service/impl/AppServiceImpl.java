@@ -128,6 +128,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         }
         AppVO appVO = new AppVO();
         BeanUtils.copyProperties(app, appVO);
+        appVO.setArtifactAvailable(isArtifactAvailable(app));
 
         // 关联查询用户信息
         Long userId = app.getUserId();
@@ -136,6 +137,20 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             appVO.setCreateUser(userService.getUserVO(user));
         }
         return appVO;
+    }
+
+    private boolean isArtifactAvailable(App app) {
+        if (app.getId() == null || StrUtil.isBlank(app.getCodeGenType())) {
+            return false;
+        }
+        File sourceDir = new File(
+                zeroCodeProperties.getCode().getOutputRoot(),
+                app.getCodeGenType() + "_" + app.getId()
+        );
+        File previewEntry = CodeGenTypeEnum.VUE_PROJECT.getValue().equals(app.getCodeGenType())
+                ? new File(sourceDir, "dist/index.html")
+                : new File(sourceDir, "index.html");
+        return previewEntry.isFile();
     }
 
     @Override
@@ -219,6 +234,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
                             MonitorContextHolder.clearContext();
                         });
             } catch (RuntimeException e) {
+                log.error("Failed to initialize code generation, appId={}, userId={}", appId, LoginUser.getId(), e);
                 generationGuardService.release(lease);
                 MonitorContextHolder.clearContext();
                 return Flux.error(e);

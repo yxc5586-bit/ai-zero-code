@@ -50,6 +50,10 @@ const HISTORY_PAGE_SIZE = 10
 const isOwner = computed(() =>
   Boolean(appInfo.value?.userId && appInfo.value.userId === loginUserStore.loginUser?.id),
 )
+const artifactAvailable = computed(() => appInfo.value?.artifactAvailable === true)
+const artifactExpired = computed(
+  () => appInfo.value?.artifactAvailable === false && messages.value.length >= 2,
+)
 const previewBaseUrl = computed(() => (appInfo.value ? getStaticPreviewUrl(appInfo.value) : ''))
 const previewUrl = computed(() =>
   previewBaseUrl.value ? `${previewBaseUrl.value}?preview=${previewVersion.value}` : '',
@@ -130,7 +134,7 @@ const loadChatHistory = async (initial = false) => {
         : historyRecords.length === HISTORY_PAGE_SIZE
 
     if (initial) {
-      previewReady.value = historyRecords.length >= 2
+      previewReady.value = artifactAvailable.value && historyRecords.length >= 2
       await scrollToBottom(true)
     } else {
       await nextTick()
@@ -218,6 +222,7 @@ const startGeneration = async (content: string, requestContent = content) => {
       assistantMessage.status = 'done'
       if (!assistantMessage.content) assistantMessage.content = '网站代码已生成完成。'
       generating.value = false
+      if (appInfo.value) appInfo.value.artifactAvailable = true
       previewReady.value = true
       previewVersion.value = Date.now()
       void scrollToBottom()
@@ -302,7 +307,7 @@ const toggleVisualEditing = () => {
 }
 
 const handleDeploy = async () => {
-  if (!isOwner.value || generating.value) return
+  if (!isOwner.value || generating.value || !artifactAvailable.value) return
   deploying.value = true
   try {
     const response = await deployApp({ appId: appId.value })
@@ -322,7 +327,7 @@ const handleDeploy = async () => {
 }
 
 const handleDownload = async () => {
-  if (!isOwner.value || generating.value || downloading.value) return
+  if (!isOwner.value || generating.value || downloading.value || !artifactAvailable.value) return
   downloading.value = true
   try {
     // Long 类型应用 ID 超过 JavaScript 安全整数范围，必须保留路由中的原始字符串
@@ -429,13 +434,17 @@ onBeforeUnmount(() => {
       <div class="workspace__header-actions">
         <a-button @click="router.push('/')">返回首页</a-button>
         <a-button :disabled="!previewReady" @click="refreshPreview">刷新预览</a-button>
-        <a-button :loading="downloading" :disabled="!isOwner || generating" @click="handleDownload">
+        <a-button
+          :loading="downloading"
+          :disabled="!isOwner || generating || !artifactAvailable"
+          @click="handleDownload"
+        >
           下载代码
         </a-button>
         <a-button
           type="primary"
           :loading="deploying"
-          :disabled="!isOwner || generating"
+          :disabled="!isOwner || generating || !artifactAvailable"
           @click="handleDeploy"
         >
           部署应用
@@ -471,6 +480,14 @@ onBeforeUnmount(() => {
 
       <div v-else class="workspace__body">
         <section class="chat-panel" :class="{ 'mobile-hidden': mobilePanel !== 'chat' }">
+          <a-alert
+            v-if="artifactExpired"
+            class="artifact-expired-alert"
+            type="warning"
+            show-icon
+            message="生成产物已过期"
+            description="演示环境的生成产物最多保留 24 小时。你可以继续发送需求重新生成，恢复预览、下载和部署。"
+          />
           <div class="chat-panel__intro">
             <span class="status-dot" :class="{ active: generating }"></span>
             <div>
@@ -617,12 +634,22 @@ onBeforeUnmount(() => {
               <div class="preview-empty__mark">
                 <img src="/logo.png" alt="" />
               </div>
-              <h2>{{ generating ? '正在生成你的网站' : '网站预览将在这里出现' }}</h2>
+              <h2>
+                {{
+                  generating
+                    ? '正在生成你的网站'
+                    : artifactExpired
+                      ? '生成产物已过期'
+                      : '网站预览将在这里出现'
+                }}
+              </h2>
               <p>
                 {{
                   generating
                     ? 'AI 正在理解需求、编写代码并保存文件，请稍候。'
-                    : '发送第一条生成消息后，完成的网站会自动加载。'
+                    : artifactExpired
+                      ? '演示环境的生成产物最多保留 24 小时，请发送需求重新生成。'
+                      : '发送第一条生成消息后，完成的网站会自动加载。'
                 }}
               </p>
               <div v-if="generating" class="generation-steps">
