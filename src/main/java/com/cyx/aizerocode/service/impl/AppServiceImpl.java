@@ -129,6 +129,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         AppVO appVO = new AppVO();
         BeanUtils.copyProperties(app, appVO);
         appVO.setArtifactAvailable(isArtifactAvailable(app));
+        appVO.setDeployUrl(buildDeployUrl(app.getDeployKey()));
 
         // 关联查询用户信息
         Long userId = app.getUserId();
@@ -151,6 +152,13 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
                 ? new File(sourceDir, "dist/index.html")
                 : new File(sourceDir, "index.html");
         return previewEntry.isFile();
+    }
+
+    private String buildDeployUrl(String deployKey) {
+        if (StrUtil.isBlank(deployKey)) {
+            return null;
+        }
+        return String.format("%s/deploy/%s/", zeroCodeProperties.getCode().getPublicBaseUrl(), deployKey);
     }
 
     @Override
@@ -303,7 +311,7 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         boolean updateResult = this.updateById(updateApp);
         ThrowUtils.throwIf(!updateResult, ErrorCode.OPERATION_ERROR, "更新应用部署信息失败");
         //  构建应用访问 URL
-        String appDeployUrl = String.format("%s/deploy/%s/", zeroCodeProperties.getCode().getPublicBaseUrl(), deployKey);
+        String appDeployUrl = buildDeployUrl(deployKey);
         //  异步生成截图并更新应用封面
         generateAppScreenshotAsync(appId, appDeployUrl);
         return appDeployUrl;

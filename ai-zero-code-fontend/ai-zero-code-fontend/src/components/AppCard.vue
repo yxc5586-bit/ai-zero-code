@@ -22,7 +22,7 @@ const loginUserStore = useLoginUserStore()
 const isOwner = computed(() =>
   Boolean(props.app.userId && props.app.userId === loginUserStore.loginUser?.id),
 )
-const deployUrl = computed(() => getDeployUrl(props.app.deployKey))
+const deployUrl = computed(() => getDeployUrl(props.app.deployKey, props.app.deployUrl))
 const creatorName = computed(
   () => props.app.createUser?.userName || props.app.createUser?.userAccount || 'AI ZeroCode 用户',
 )

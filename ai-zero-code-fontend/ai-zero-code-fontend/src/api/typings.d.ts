@@ -44,6 +44,7 @@ declare namespace API {
     codeGenType?: string
     artifactAvailable?: boolean
     deployKey?: string
+    deployUrl?: string
     deployedTime?: string
     priority?: number
     userId?: number

@@ -206,6 +206,8 @@ class ProductionRuntimePreparationTest {
         String deployUrl = service.deployApp(1L, user);
 
         assertEquals("http://host:8080/deploy/key123/", deployUrl);
+        app.setUserId(null);
+        assertEquals(deployUrl, service.getAppVO(app).getDeployUrl());
         assertTrue(Files.isRegularFile(tempDir.resolve("deploy/key123/index.html")));
     }
 

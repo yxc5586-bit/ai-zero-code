@@ -49,8 +49,8 @@ export const formatCodeGenType = (value?: string) => {
   return value ? CODE_GEN_TYPE_LABELS[value] || value : '—'
 }
 
-export const getDeployUrl = (deployKey?: string) =>
-  deployKey ? `${APP_DEPLOY_BASE_URL}/${deployKey}/` : ''
+export const getDeployUrl = (deployKey?: string, deployUrl?: string) =>
+  deployUrl?.trim() || (deployKey ? `${APP_DEPLOY_BASE_URL}/${deployKey}/` : '')
 
 export const getStaticPreviewUrl = (app: Pick<API.AppVO, 'id' | 'codeGenType'>) => {
   if (!app.id || !app.codeGenType) return ''

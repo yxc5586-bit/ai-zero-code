@@ -25,7 +25,7 @@ const emit = defineEmits<{
 }>()
 
 const previewUrl = computed(() => (props.app ? getStaticPreviewUrl(props.app) : ''))
-const deployUrl = computed(() => getDeployUrl(props.app?.deployKey))
+const deployUrl = computed(() => getDeployUrl(props.app?.deployKey, props.app?.deployUrl))
 const creatorName = computed(
   () =>
     props.app?.createUser?.userName ||
