@@ -208,7 +208,33 @@ class ProductionRuntimePreparationTest {
         assertEquals("http://host:8080/deploy/key123/", deployUrl);
         app.setUserId(null);
         assertEquals(deployUrl, service.getAppVO(app).getDeployUrl());
+        assertTrue(service.getAppVO(app).getDeploymentAvailable());
         assertTrue(Files.isRegularFile(tempDir.resolve("deploy/key123/index.html")));
+    }
+
+    @Test
+    void deploymentStatusRequiresExistingIndexFile() throws Exception {
+        ZeroCodeProperties properties = new ZeroCodeProperties();
+        properties.getCode().setOutputRoot(tempDir.resolve("output").toString());
+        properties.getCode().setDeployRoot(tempDir.resolve("deploy").toString());
+        properties.getCode().setPublicBaseUrl("http://host:8080");
+
+        AppServiceImpl service = new AppServiceImpl();
+        ReflectionTestUtils.setField(service, "zeroCodeProperties", properties);
+        App app = App.builder().deployKey("missing").build();
+
+        assertFalse(service.getAppVO(app).getDeploymentAvailable());
+        assertNull(service.getAppVO(app).getDeployUrl());
+        app.setDeployKey(null);
+        assertFalse(service.getAppVO(app).getDeploymentAvailable());
+    }
+
+    @Test
+    void cleanupKeepsDeploymentsAndTargetsOnlyTopLevelArtifacts() throws Exception {
+        String script = Files.readString(Path.of("deploy/scripts/cleanup-zerocode-artifacts.sh"));
+
+        assertFalse(script.contains("tmp/code_deploy"));
+        assertTrue(script.contains("-mindepth 1 -maxdepth 1"));
     }
 
     @Test

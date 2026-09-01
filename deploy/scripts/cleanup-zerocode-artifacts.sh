@@ -18,7 +18,6 @@ fi
 
 targets=(
   "$base_dir/tmp/code_output"
-  "$base_dir/tmp/code_deploy"
   "$base_dir/tmp/screenshots"
 )
 
@@ -28,9 +27,10 @@ for target in "${targets[@]}"; do
   resolved_target="$(readlink -f -- "$target")"
   [[ "$resolved_target" == "$base_dir/"* ]] || { echo "target escaped base path: $target" >&2; exit 1; }
 
-  if [[ "$execute" == true ]]; then
-    find "$resolved_target" -depth -mindepth 1 -mmin +1440 -print -delete
-  else
-    find "$resolved_target" -depth -mindepth 1 -mmin +1440 -print
-  fi
+  while IFS= read -r -d '' candidate; do
+    printf '%s\n' "$candidate"
+    if [[ "$execute" == true ]]; then
+      rm -rf -- "$candidate"
+    fi
+  done < <(find "$resolved_target" -mindepth 1 -maxdepth 1 -mmin +1440 -print0)
 done

@@ -24,8 +24,14 @@ const emit = defineEmits<{
   edit: [app: API.AppVO]
 }>()
 
-const previewUrl = computed(() => (props.app ? getStaticPreviewUrl(props.app) : ''))
-const deployUrl = computed(() => getDeployUrl(props.app?.deployKey, props.app?.deployUrl))
+const previewUrl = computed(() =>
+  props.app?.artifactAvailable ? getStaticPreviewUrl(props.app) : '',
+)
+const deployUrl = computed(() =>
+  props.app?.deploymentAvailable
+    ? getDeployUrl(props.app.deployKey, props.app.deployUrl)
+    : '',
+)
 const creatorName = computed(
   () =>
     props.app?.createUser?.userName ||
@@ -56,8 +62,8 @@ const creatorName = computed(
         <a-descriptions-item label="优先级">{{ app.priority ?? 0 }}</a-descriptions-item>
         <a-descriptions-item label="部署状态">
           <a-badge
-            :status="app.deployKey ? 'success' : 'default'"
-            :text="app.deployKey ? '已部署' : '未部署'"
+            :status="app.deploymentAvailable ? 'success' : app.deployKey ? 'warning' : 'default'"
+            :text="app.deploymentAvailable ? '已部署' : app.deployKey ? '部署产物已过期' : '未部署'"
           />
         </a-descriptions-item>
         <a-descriptions-item label="创建时间">

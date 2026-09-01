@@ -129,7 +129,9 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
         AppVO appVO = new AppVO();
         BeanUtils.copyProperties(app, appVO);
         appVO.setArtifactAvailable(isArtifactAvailable(app));
-        appVO.setDeployUrl(buildDeployUrl(app.getDeployKey()));
+        boolean deploymentAvailable = isDeploymentAvailable(app.getDeployKey());
+        appVO.setDeploymentAvailable(deploymentAvailable);
+        appVO.setDeployUrl(deploymentAvailable ? buildDeployUrl(app.getDeployKey()) : null);
 
         // 关联查询用户信息
         Long userId = app.getUserId();
@@ -159,6 +161,13 @@ public class AppServiceImpl extends ServiceImpl<AppMapper, App> implements AppSe
             return null;
         }
         return String.format("%s/deploy/%s/", zeroCodeProperties.getCode().getPublicBaseUrl(), deployKey);
+    }
+
+    private boolean isDeploymentAvailable(String deployKey) {
+        return StrUtil.isNotBlank(deployKey) && new File(
+                zeroCodeProperties.getCode().getDeployRoot(),
+                deployKey + File.separator + "index.html"
+        ).isFile();
     }
 
     @Override

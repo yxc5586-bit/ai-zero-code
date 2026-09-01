@@ -22,7 +22,11 @@ const loginUserStore = useLoginUserStore()
 const isOwner = computed(() =>
   Boolean(props.app.userId && props.app.userId === loginUserStore.loginUser?.id),
 )
-const deployUrl = computed(() => getDeployUrl(props.app.deployKey, props.app.deployUrl))
+const deployUrl = computed(() =>
+  props.app.deploymentAvailable
+    ? getDeployUrl(props.app.deployKey, props.app.deployUrl)
+    : '',
+)
 const creatorName = computed(
   () => props.app.createUser?.userName || props.app.createUser?.userAccount || 'AI ZeroCode 用户',
 )
@@ -46,13 +50,14 @@ const editApp = () => {
 
       <div class="app-card__badges">
         <span v-if="app.priority === 99" class="badge badge--featured">精选</span>
-        <span v-if="app.deployKey" class="badge badge--deployed">已部署</span>
+        <span v-if="app.deploymentAvailable" class="badge badge--deployed">已部署</span>
+        <span v-else-if="app.deployKey" class="badge badge--expired">部署产物已过期</span>
       </div>
 
       <div class="app-card__actions">
         <a-button class="action-button" @click="emit('detail', app)"> 查看详情 </a-button>
         <a-button v-if="isOwner" class="action-button" @click="enterChat"> 继续创作 </a-button>
-        <a-tooltip :title="deployUrl ? '打开部署网站' : '暂未部署'">
+        <a-tooltip :title="deployUrl ? '打开部署网站' : app.deployKey ? '部署产物已过期' : '暂未部署'">
           <a-button
             class="action-button action-button--primary"
             :disabled="!deployUrl"
@@ -150,6 +155,9 @@ const editApp = () => {
 }
 .badge--deployed {
   background: rgba(5, 150, 105, 0.86);
+}
+.badge--expired {
+  background: rgba(180, 83, 9, 0.88);
 }
 .more-button {
   position: absolute;
