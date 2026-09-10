@@ -44,8 +44,11 @@ const previewIframeRef = ref<HTMLIFrameElement | null>(null)
 const isVisualEditing = ref(false)
 const selectedElement = ref<VisualEditorElementInfo | null>(null)
 let activeStream: CodeGenerationStream | null = null
+let disposeActiveStreamBuffer: (() => void) | null = null
 
 const HISTORY_PAGE_SIZE = 10
+const STREAM_RENDER_INTERVAL_MS = 60
+const STREAM_RENDER_MAX_BUFFER_CHARS = 2048
 
 const isOwner = computed(() =>
   Boolean(appInfo.value?.userId && appInfo.value.userId === loginUserStore.loginUser?.id),
@@ -150,14 +153,14 @@ const loadChatHistory = async (initial = false) => {
   }
 }
 
-const scrollToBottom = async (force = false) => {
+const scrollToBottom = async (force = false, behavior: ScrollBehavior = 'smooth') => {
   await nextTick()
   const container = messageListRef.value
   if (!container) return
 
   const distance = container.scrollHeight - container.scrollTop - container.clientHeight
   if (force || distance < 140) {
-    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+    container.scrollTo({ top: container.scrollHeight, behavior })
     showScrollButton.value = false
   }
 }
@@ -191,8 +194,8 @@ const startGeneration = async (content: string, requestContent = content) => {
     content: value,
     status: 'done',
   }
-  // 必须保留响应式代理。若继续修改 push 前的普通对象，Vue 不会在每个 SSE
-  // 数据块到达时触发视图更新，只会在其他响应式状态变化后一次性显示完整内容。
+  // 保留响应式代理，但不要让每个 SSE 小片段都直接触发视图更新。
+  // 流式内容会先进入普通字符串缓冲区，再按固定间隔批量写入该对象。
   const assistantMessage = reactive<ChatMessage>({
     id: createMessageId(),
     role: 'assistant',
@@ -210,17 +213,72 @@ const startGeneration = async (content: string, requestContent = content) => {
   await scrollToBottom(true)
 
   activeStream?.close()
-  activeStream = openCodeGenerationStream({
+  disposeActiveStreamBuffer?.()
+
+  let pendingContent = ''
+  let flushTimer: number | null = null
+  let bufferClosed = false
+
+  const clearFlushTimer = () => {
+    if (flushTimer === null) return
+    window.clearTimeout(flushTimer)
+    flushTimer = null
+  }
+
+  const flushPendingContent = (shouldScroll = true) => {
+    if (bufferClosed) return
+    clearFlushTimer()
+    if (!pendingContent) return
+
+    assistantMessage.content += pendingContent
+    pendingContent = ''
+    if (shouldScroll) void scrollToBottom(false, 'auto')
+  }
+
+  const closeStreamBuffer = (flushRemaining: boolean) => {
+    if (bufferClosed) return
+    clearFlushTimer()
+    if (flushRemaining && pendingContent) {
+      assistantMessage.content += pendingContent
+    }
+    pendingContent = ''
+    bufferClosed = true
+    if (disposeActiveStreamBuffer === disposeStreamBuffer) {
+      disposeActiveStreamBuffer = null
+    }
+  }
+
+  const disposeStreamBuffer = () => closeStreamBuffer(false)
+  disposeActiveStreamBuffer = disposeStreamBuffer
+
+  const queueChunk = (chunk: string) => {
+    if (bufferClosed || !chunk) return
+    pendingContent += chunk
+
+    if (pendingContent.length >= STREAM_RENDER_MAX_BUFFER_CHARS) {
+      flushPendingContent()
+      return
+    }
+    if (flushTimer !== null) return
+
+    flushTimer = window.setTimeout(() => {
+      flushTimer = null
+      flushPendingContent()
+    }, STREAM_RENDER_INTERVAL_MS)
+  }
+
+  let stream: CodeGenerationStream | null = null
+  stream = openCodeGenerationStream({
     appId: appId.value,
     message: requestValue,
     onChunk(chunk) {
-      assistantMessage.content += chunk
-      void scrollToBottom()
+      queueChunk(chunk)
     },
     onDone() {
-      activeStream = null
-      assistantMessage.status = 'done'
+      closeStreamBuffer(true)
       if (!assistantMessage.content) assistantMessage.content = '网站代码已生成完成。'
+      assistantMessage.status = 'done'
+      if (activeStream === stream) activeStream = null
       generating.value = false
       if (appInfo.value) appInfo.value.artifactAvailable = true
       previewReady.value = true
@@ -229,13 +287,16 @@ const startGeneration = async (content: string, requestContent = content) => {
       message.success('网站生成完成，预览已刷新')
     },
     onError(error) {
-      assistantMessage.status = 'error'
+      closeStreamBuffer(true)
       assistantMessage.content ||= error.message
+      assistantMessage.status = 'error'
       generating.value = false
-      activeStream = null
+      if (activeStream === stream) activeStream = null
+      void scrollToBottom()
       message.error(error.message)
     },
   })
+  activeStream = stream
 }
 
 const sendCurrentMessage = () => {
@@ -412,6 +473,9 @@ const loadApplication = async () => {
 onMounted(loadApplication)
 onBeforeUnmount(() => {
   activeStream?.close()
+  disposeActiveStreamBuffer?.()
+  activeStream = null
+  disposeActiveStreamBuffer = null
   visualEditor.destroy()
 })
 </script>
@@ -520,9 +584,14 @@ onBeforeUnmount(() => {
                 }"
               >
                 <MarkdownRenderer
-                  v-if="item.role === 'assistant' && item.content"
+                  v-if="item.role === 'assistant' && item.status === 'done' && item.content"
                   :content="item.content"
                 />
+                <pre
+                  v-else-if="item.role === 'assistant' && item.content"
+                  class="plain-message plain-message--assistant"
+                  >{{ item.content }}</pre
+                >
                 <p v-else class="plain-message">{{ item.content || '正在思考并生成代码…' }}</p>
                 <span
                   v-if="item.status === 'streaming' && item.content"
@@ -949,6 +1018,13 @@ onBeforeUnmount(() => {
   overflow-wrap: anywhere;
   line-height: 1.72;
   white-space: pre-wrap;
+}
+
+.plain-message--assistant {
+  max-width: 100%;
+  font-family: 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+  word-break: break-word;
 }
 
 .typing {

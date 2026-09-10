@@ -222,13 +222,6 @@ VITE_API_BASE_URL=/api
 VITE_DEPLOY_DOMAIN=http://localhost
 ```
 
-公网 IP 阶段部署 ZeroCode 前端时可设置：
-
-```env
-VITE_API_BASE_URL=/api
-VITE_DEPLOY_DOMAIN=http://PUBLIC_IP:8080/deploy
-```
-
 启动前端：
 
 ```bash
